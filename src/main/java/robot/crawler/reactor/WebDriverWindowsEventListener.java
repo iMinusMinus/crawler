@@ -49,6 +49,13 @@ public record WebDriverWindowsEventListener(WebDriverContext context) implements
     }
 
     @Override
+    public void afterClose(WebDriver driver) {
+        // switch window after close or driver.getWindowHandle throws Exception
+        // org.openqa.selenium.NoSuchWindowException: no such window: target window already closed
+        driver.switchTo().window(context.currentWindow());
+    }
+
+    @Override
     public void beforeQuit(WebDriver driver) {
         openedWindows.clear();
     }

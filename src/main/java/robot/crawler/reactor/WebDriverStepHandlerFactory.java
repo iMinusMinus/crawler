@@ -50,6 +50,7 @@ public class WebDriverStepHandlerFactory {
 
         @Override
         public void handle(WebDriverContext context, Locator step) {
+            log.debug("handle locator step: {}", step);
             By locator;
             if (step.xpath() != null) {
                 locator = By.xpath(step.xpath());
@@ -58,7 +59,7 @@ public class WebDriverStepHandlerFactory {
             } else {
                 throw new IllegalArgumentException("missing xpath/css selector for locator");
             }
-            WebElement scope = context.currentElement();
+            WebElement scope = context.currentElement(webDriver.getWindowHandle());
             List<WebElement> elements;
             WebElement element;
             if (step.multi()) {
@@ -82,10 +83,13 @@ public class WebDriverStepHandlerFactory {
         ActionHandler(WebDriver webDriver) {
             this.webDriver = webDriver;
             expectedConditions.put("numberOfWindows", (expectWindows) -> ExpectedConditions.numberOfWindowsToBe(Integer.parseInt(expectWindows)));
+            expectedConditions.put("elementPresence", (selector) -> (ExpectedCondition<Boolean>) driver -> driver.findElement(By.cssSelector(selector)) != null
+                    || driver.findElement(By.xpath(selector)) != null);
         }
 
         @Override
         public void handle(WebDriverContext context, Action step) {
+            log.debug("handle action step: {}", step);
             Action.Type type = Action.Type.getInstance(step.actionName());
             if (type == null) {
                 log.error("available action names: {}, given '{}'", Action.Type.values(), step.actionName());
@@ -173,6 +177,7 @@ public class WebDriverStepHandlerFactory {
 
         @Override
         public void handle(WebDriverContext context, Finder step) {
+            log.debug("handle finder step: {}", step);
             By locator;
             if (step.xpath() != null) {
                 locator = By.xpath(step.xpath());
@@ -181,7 +186,7 @@ public class WebDriverStepHandlerFactory {
             } else {
                 locator = null;
             }
-            WebElement scope = context.currentElement();
+            WebElement scope = context.currentElement(webDriver.getWindowHandle());
             WebElement target;
             if (scope == null && locator != null) {
                 target = webDriver.findElement(locator);
@@ -229,6 +234,7 @@ public class WebDriverStepHandlerFactory {
 
         @Override
         public void handle(WebDriverContext context, Box step) {
+            log.debug("handle box step: {}", step);
             WebElement webElement = context.getElement(step.target());
             List<WebElement> elements = context.getElements(step.target());
             if (elements != null) {
@@ -251,7 +257,10 @@ public class WebDriverStepHandlerFactory {
                     context.popResult();
                 }
             } else if (webElement != null){
-                handleSteps(context, step, webElement);
+                Object object = handleSteps(context, step, webElement);
+                if (object != null) {
+                    context.fillResult(step.outputPropertyName(), object);
+                }
             }
         }
 
@@ -260,7 +269,8 @@ public class WebDriverStepHandlerFactory {
                 Object object = ObjectFactory.getObject(step.outputValueType());
                 context.pushResult(object);
             }
-            context.snapshotElement(element);
+            String windowHandleId = webDriver.getWindowHandle();
+            context.snapshotElement(windowHandleId, element);
             for (Step s : step.steps()) {
                 Step.Type type = Step.Type.getInstance(s.type());
                 if (type == null) {
@@ -268,7 +278,7 @@ public class WebDriverStepHandlerFactory {
                 }
                 WebDriverStepHandlerFactory.getHandler(webDriver, type).handle(context, s);
             }
-            context.restoreElement();
+            context.restoreElement(windowHandleId);
             return step.outputValueType() != null ? context.popResult() : null;
         }
 

@@ -2,10 +2,7 @@ package robot.crawler.reactor;
 
 import org.openqa.selenium.WebElement;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public record WebDriverContext(boolean cleanElementsAfterClose) implements Context<WebElement> {
@@ -20,7 +17,7 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
 
     private static final Stack<Object> result = new Stack<>();
 
-    private static final Stack<WebElement> scopes = new Stack<>();
+    private static final Map<String, Stack<WebElement>> scopes = new HashMap<>();
 
     private static final Map<String, List<String>> windowElements = new ConcurrentHashMap<>();
 
@@ -70,6 +67,11 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
     }
 
     @Override
+    public String currentWindow() {
+        return windows.peek();
+    }
+
+    @Override
     public String destroyWindow() {
         String id = windows.pop();
         if (cleanElementsAfterClose) {
@@ -80,22 +82,26 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
                 removeScreenshot(key);
             }
         }
+        scopes.remove(id);
         return id;
     }
 
     @Override
-    public void snapshotElement(WebElement webElement) {
-        scopes.push(webElement);
+    public void snapshotElement(String window, WebElement webElement) {
+        scopes.computeIfAbsent(window, (id) -> new Stack<>()).push(webElement);
     }
 
     @Override
-    public WebElement currentElement() {
-        return scopes.isEmpty() ? null : scopes.peek();
+    public WebElement currentElement(String window) {
+        return scopes.get(window) == null || scopes.get(window).isEmpty() ? null : scopes.get(window).peek();
     }
 
     @Override
-    public void restoreElement() {
-        scopes.pop();
+    public void restoreElement(String window) {
+        if (scopes.get(window) == null || scopes.get(window).isEmpty()) {
+            return;
+        }
+        scopes.get(window).pop();
     }
 
     @Override

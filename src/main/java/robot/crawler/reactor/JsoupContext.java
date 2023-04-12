@@ -40,22 +40,27 @@ public record JsoupContext() implements Context<Element> {
     }
 
     @Override
+    public String currentWindow() {
+        return null;
+    }
+
+    @Override
     public String destroyWindow() {
         return null;
     }
 
     @Override
-    public void snapshotElement(Element element) {
+    public void snapshotElement(String window, Element element) {
 
     }
 
     @Override
-    public WebElement currentElement() {
+    public WebElement currentElement(String window) {
         return null;
     }
 
     @Override
-    public void restoreElement() {
+    public void restoreElement(String window) {
 
     }
 

@@ -19,13 +19,15 @@ public interface Context<E> {
 
     void activeWindow(String windowHandle);
 
+    String currentWindow();
+
     String destroyWindow();
 
-    void snapshotElement(E element);
+    void snapshotElement(String window, E element);
 
-    WebElement currentElement();
+    WebElement currentElement(String window);
 
-    void restoreElement();
+    void restoreElement(String window);
 
     void pushResult(Object object);
 

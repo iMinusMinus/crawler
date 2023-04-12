@@ -14,7 +14,7 @@ public class AntiDianPingAntiCrawler {
 
     private static final String DIANPING_URL = "https://www.dianping.com/";
 
-    public static final String SHOP_LEVEL_CONVERTER = "dianping.shopLevelConverter";
+    public static final String SHOP_STAR_CONVERTER = "dianping.shopStarConverter";
 
     public static final String CATEGORY_CONVERTER = "dianping.categoryConverter";
 
@@ -22,16 +22,22 @@ public class AntiDianPingAntiCrawler {
 
     public static final String AREA_CONVERTER = "dianping.areaConverter";
 
+    public static final String SCORE_CONVERTER = "dianping.score";
+
+    private static final String SCORE_SEPARATOR = "：";
+
+    public static final String REVIEW_QUANTITY_CONVERTER = "dianping.reviewQuantity";
+
     private static final Logger log = LoggerFactory.getLogger(AntiDianPingAntiCrawler.class);
 
-    public static String shopLevelConverter(String cssClass) {
+    public static String shopStarConverter(String cssClass) {
         String[] attributes = cssClass.split(" ");
         for (String attribute : attributes) {
             if (attribute.startsWith(LEVEL_PREFIX) && !LEVEL_NOT.equals(attribute)) {
                 return new BigDecimal(attribute.substring(LEVEL_PREFIX.length())).divide(BigDecimal.TEN, 1, RoundingMode.HALF_UP).toString();
             }
         }
-        log.error("convert[{}] execute fail for value: {}", SHOP_LEVEL_CONVERTER, cssClass);
+        log.error("convert[{}] execute fail for value: {}", SHOP_STAR_CONVERTER, cssClass);
         return null;
     }
 
@@ -48,4 +54,21 @@ public class AntiDianPingAntiCrawler {
         return url.substring(DIANPING_URL.length());
     }
 
+    public static String scoreConverter(String scoreText) {
+        try {
+            return scoreText.split(SCORE_SEPARATOR)[1];
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return scoreText;
+        }
+    }
+
+    public static String reviewQuantityConverter(String rawQuantity) {
+        try {
+            return rawQuantity.substring(1, rawQuantity.length() - 1);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return rawQuantity;
+        }
+    }
 }
