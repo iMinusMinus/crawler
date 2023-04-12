@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+._*
+
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.lnk
+
+
+# IDE
+.idea/**
+*.iml
+out/
+
+bin/
+tmp/
+*.tmp
+*.bak
+.settings/
+.springBeans
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+
+# Build Tool
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+.gradle
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+
+# PL
+*.class
+*,log
+*.war
+*.jar
+*.ear
+*.jmod
+
+hs_err_pid*

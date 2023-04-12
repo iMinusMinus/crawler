@@ -1,0 +1,123 @@
+{
+  "type": "object",
+  "required": ["id", "url", "settings", "steps"],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "settings": {
+      "type": "object",
+      "required": ["driverName", "arguments"],
+      "properties": {
+        "driverName": {
+          "type": "string",
+          "enum": ["chrome", "msedge", "firefox", "opera", "safari", "internet explorer"]
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^--[a-zA-Z0-9]+=[a-zA-Z0-9]+$"
+          },
+          "examples": ["--headless=new"]
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minitems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["box", "locator", "action", "finder"]
+          },
+          "target": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array"
+          },
+          "xpath": {
+            "type": "string",
+            "hint": "循环内注意选择器的使用，不要误选择了所有"
+          },
+          "selector": {
+            "type": "string",
+            "hint": "循环内注意选择器的使用，不要误选择了所有"
+          },
+          "multi": {
+            "type": "boolean"
+          },
+          "valueGetter": {
+            "type": "string",
+            "enum": ["text", "attribute"]
+          },
+          "attributeKey": {
+            "type": "string"
+          },
+          "outputPropertyName": {
+            "type": "string",
+            "pattern": "^[a-zA-Z\\$][0-9a-zA-Z_\\$]+",
+            "hint": "'$' stands for root object of result, null stands collection elements"
+          },
+          "outputValueType": {
+            "type": "string",
+            "hint": "for box type, this value stands for element wrapper type"
+          },
+          "valueConverter": {
+            "type": "string"
+          },
+          "actionName": {
+            "type": "string",
+            "enum": ["+cookies", "-cookie", "-cookies","switch", "input", "click", "scroll", "close", "wait", "screenshot"]
+          },
+          "cookies": {
+            "type": "string"
+          },
+          "cookieNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inputValue": {
+            "type": "string"
+          },
+          "deltaX": {
+            "type": "number"
+          },
+          "deltaY": {
+            "type": "number"
+          },
+          "scrollTo": {
+            "type": "string"
+          },
+          "minWaitTime": {
+            "type": "number"
+          },
+          "maxWaitTime": {
+            "type": "number"
+          },
+          "expectedCondition": {
+            "type": "string"
+          },
+          "testValue": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
