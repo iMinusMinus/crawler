@@ -1,0 +1,115 @@
+{
+  "id": "dianping-city",
+  "url": "https://www.dianping.com/",
+  "settings": {
+    "driverName": "chrome",
+    "arguments": []
+  },
+  "steps": [
+    {
+      "name": "注入cookie",
+      "type": "action",
+      "actionName": "+cookies",
+      "cookies": ""
+    },
+    {
+      "id": "locate-switch-city",
+      "name": "定位更换城市",
+      "type": "locator",
+      "selector": "#top-nav > div.top-nav-container.clearfix > div.group.J-city-select > a > span.J-city-change"
+    },
+    {
+      "id": "switch-city",
+      "name": "切换城市",
+      "type": "action",
+      "actionName": "click",
+      "target": "locate-switch-city"
+    },
+    {
+      "id": "locate-more-city",
+      "name": "定位更多城市",
+      "type": "locator",
+      "selector": "#top-nav > div.top-nav-container.clearfix > div.group.J-city-select > div > a"
+    },
+    {
+      "id": "more-city",
+      "name": "选择更多城市",
+      "type": "action",
+      "actionName": "click",
+      "target": "locate-more-city",
+      "hint": "navigate to url: https://www.dianping.com/citylist"
+    },
+    {
+      "id": "locate-city-list",
+      "name": "定位城市列表",
+      "type": "locator",
+      "selector": "#main > div.main-citylist > ul > li",
+      "multi": true
+    },
+    {
+      "id": "compose-city-list",
+      "name": "获取城市列表",
+      "type": "box",
+      "target": "locate-city-list",
+      "outputPropertyName": "$",
+      "wrap": false,
+      "steps": [
+        {
+          "id": "locate-more",
+          "name": "定位更多：展开按字母排序下该字母开头的所有城市",
+          "type": "locator",
+          "selector": "span.more"
+        },
+        {
+          "name": "点击更多",
+          "type": "action",
+          "actionName": "click",
+          "target": "locate-more"
+        },
+        {
+          "id": "locate-city",
+          "name": "定位城市元素",
+          "type": "locator",
+          "selector": "div.terms > div > a",
+          "multi": true
+        },
+        {
+          "id": "get-city-info",
+          "name": "获取城市信息",
+          "type": "box",
+          "target": "locate-city",
+          "wrap": true,
+          "steps": [
+            {
+              "name": "获取城市拼音",
+              "type": "finder",
+              "outputPropertyName": "cityPinyinSpelling",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "valueConverter": "str",
+              "hint": "//www.dianping.com/{cityPinyinSpelling}"
+            },
+            {
+              "name": "获取城市中文名称",
+              "type": "finder",
+              "outputPropertyName": "cityName",
+              "valueGetter": "text"
+            }
+          ]
+        },
+        {
+          "id": "locate-less-city",
+          "name": "定位收起：收起按字母排序下的部分城市",
+          "type": "locator",
+          "selector": "span.up"
+        },
+        {
+          "name": "收起城市",
+          "type": "action",
+          "actionName": "click",
+          "target": "locate-less-city"
+        }
+      ]
+    }
+  ]
+}

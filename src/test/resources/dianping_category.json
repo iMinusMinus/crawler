@@ -1,0 +1,101 @@
+{
+  "id": "dianping-category",
+  "url": "https://www.dianping.com/",
+  "settings": {
+    "driverName": "chrome",
+    "arguments": []
+  },
+  "steps": [
+    {
+      "name": "注入cookie",
+      "type": "action",
+      "actionName": "+cookies",
+      "cookies": ""
+    },
+    {
+      "id": "locate-city-category",
+      "name": "定位当前城市分类",
+      "type": "locator",
+      "selector": "#cata-hot > div.cata-hot-detail.cata-hot-info > div > a"
+    },
+    {
+      "id": "city-category",
+      "name": "点击城市分类",
+      "type": "action",
+      "actionName": "click",
+      "target": "locate-city-category"
+    },
+    {
+      "name": "切换当前城市生活指南地图(含分类、商区/地标/地铁沿线/大学周边)：https://www.dianping.com/shopall/{cityId}/0",
+      "type": "action",
+      "actionName": "switch",
+      "target": "city-category"
+    },
+    {
+      "id": "locate-city-category",
+      "name": "定位当前城市分类",
+      "type": "locator",
+      "selector": "#J-shopall > div > div:nth-child(3) > dl",
+      "multi": true
+    },
+    {
+      "id": "get-city-category",
+      "name": "获取当前城市分类",
+      "type": "box",
+      "outputPropertyName": "$",
+      "target": "locate-city-category",
+      "wrap": true,
+      "steps": [
+        {
+          "name": "获取子行业代码",
+          "selector": "dt > a",
+          "type": "finder",
+          "outputPropertyName": "subIndustry",
+          "valueGetter": "attribute",
+          "attributeKey": "href",
+          "hint": "/{city}/{subIndustry}"
+        },
+        {
+          "name": "获取子行业名称",
+          "selector": "dt > a",
+          "type": "finder",
+          "outputPropertyName": "subIndustryName",
+          "valueGetter": "text"
+        },
+        {
+          "id": "locate-category",
+          "name": "定位分类",
+          "type": "locator",
+          "selector": "dd > ul > li",
+          "multi": true
+        },
+        {
+          "name": "获取分类信息",
+          "type": "box",
+          "target": "locate-category",
+          "outputPropertyName": "categories",
+          "outputValueType": "list",
+          "wrap": true,
+          "steps": [
+            {
+              "name": "获取分类名称",
+              "type": "finder",
+              "selector": "a",
+              "outputPropertyName": "categoryName",
+              "valueGetter": "text"
+            },
+            {
+              "name": "获取分类代码",
+              "type": "finder",
+              "selector": "a",
+              "outputPropertyName": "category",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "hint": "//www.dianping.com/{city}/{subIndustry}/{category}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
