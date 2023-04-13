@@ -27,8 +27,11 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     private WebDriverContext context;
 
+    private boolean debug;
+
     @Override
     public void setUp(TaskSettingDefinition settings) {
+        debug = settings.debug();
         AbstractDriverOptions options;
         WebDriver delegate;
 
@@ -84,6 +87,8 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     @Override
     public void tearDown() {
-        webDriver.quit();
+        if (!debug) {
+            webDriver.quit();
+        }
     }
 }

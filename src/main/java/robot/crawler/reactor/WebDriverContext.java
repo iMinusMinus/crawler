@@ -1,11 +1,15 @@
 package robot.crawler.reactor;
 
 import org.openqa.selenium.WebElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public record WebDriverContext(boolean cleanElementsAfterClose) implements Context<WebElement> {
+
+    private static final Logger log = LoggerFactory.getLogger(WebDriverContext.class);
 
     private static final Map<String, List<WebElement>> elementsMap = new ConcurrentHashMap<>();
 
@@ -126,8 +130,14 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
     public void fillResult(String key, Object value) {
         Object obj = result.peek();
         if (obj instanceof Map object) {
+            if (key == null) {
+                log.warn("put value {} to map, but key is null", value);
+            }
             object.put(key, value);
-        } else if (obj instanceof List array && key == null) {
+        } else if (obj instanceof List array) {
+            if (key != null) {
+                log.warn("add value {} to list, but key[{}] exist", value, key);
+            }
             array.add(value);
         } else {
             throw new RuntimeException("program error");

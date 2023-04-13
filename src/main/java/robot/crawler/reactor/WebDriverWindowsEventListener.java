@@ -19,10 +19,9 @@ public record WebDriverWindowsEventListener(WebDriverContext context) implements
     @Override
     public void beforeGet(WebDriver driver, String url) {
         if (START_PAGE_URL.equals(driver.getCurrentUrl())) { // webdriver启动页
-
-        } else { // 修改地址栏请求，打开新窗口/tab请求
-//            openedWindows.add(driver.getWindowHandle());
-//            openedWindows.addAll(driver.getWindowHandles());
+            log.debug("webdriver start");
+        } else { // 无论是get新url，还是navigate进行前进、后退、刷新、跳转指定url，不会产生新windowHandle
+            log.debug("navigator to new url: {}", url);
         }
     }
 
@@ -31,8 +30,9 @@ public record WebDriverWindowsEventListener(WebDriverContext context) implements
         Set<String> latest = driver.getWindowHandles();
         for (String opened : latest) {
             if (openedWindows.add(opened)) {
-                log.info("automatic switch window to [{}]", url);
-                driver.switchTo().window(opened);
+                // get不打开新window/tab，无需切换
+//                log.info("automatic switch window to [{}]", url);
+//                driver.switchTo().window(opened);
                 context.activeWindow(opened);
             }
         }

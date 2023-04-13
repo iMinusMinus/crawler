@@ -46,6 +46,10 @@
           "target": {
             "type": "string"
           },
+          "wrap": {
+            "type": "boolean",
+            "hint": "wrap item with map if set true"
+          },
           "steps": {
             "type": "array"
           },
@@ -74,7 +78,7 @@
           },
           "outputValueType": {
             "type": "string",
-            "hint": "for box type, this value stands for element wrapper type"
+            "hint": "property type"
           },
           "valueConverter": {
             "type": "string"

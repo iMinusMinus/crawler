@@ -237,36 +237,40 @@ public class WebDriverStepHandlerFactory {
             log.debug("handle box step: {}", step);
             WebElement webElement = context.getElement(step.target());
             List<WebElement> elements = context.getElements(step.target());
-            if (elements != null) {
-                List propertyValue = new ArrayList(elements.size());
+            if (elements != null) { // XX列表
                 boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
                 if (isRootObject) {
-                    context.initialResult(propertyValue);
-                } else {
-                    context.fillResult(step.outputPropertyName(), propertyValue);
-                    context.pushResult(propertyValue);
+                    List<Map<String, Object>> root = new ArrayList<>();
+                    context.initialResult(root);
+                } else if (step.outputValueType() != null){ // 属性类型为list/object
+                    Object value = ObjectFactory.getObject(step.outputValueType());
+                    context.fillResult(step.outputPropertyName(), value);
+                    context.pushResult(value);
                 }
                 for (WebElement element : elements) {
-                    Object object = handleSteps(context, step, element);
-                    if (object != null) {
-                        propertyValue.add(object);
-                    }
+                    handleSteps(context, step, element);
                 }
-                if (!isRootObject) {
-                    log.info("pop result on step: {}", step);
+                if (!isRootObject && step.outputValueType() != null) {
+                    log.debug("pop result on step: {}", step);
                     context.popResult();
                 }
-            } else if (webElement != null){
-                Object object = handleSteps(context, step, webElement);
-                if (object != null) {
-                    context.fillResult(step.outputPropertyName(), object);
+            } else if (webElement != null){ // XX详情
+                if (step.outputValueType() != null){
+                    Object value = ObjectFactory.getObject(step.outputValueType());
+                    context.fillResult(step.outputPropertyName(), value);
+                    context.pushResult(value);
+                }
+                handleSteps(context, step, webElement);
+                if (step.outputValueType() != null){
+                    context.popResult();
                 }
             }
         }
 
-        private Object handleSteps(WebDriverContext context, Box step, WebElement element) {
-            if (step.outputValueType() != null) {
-                Object object = ObjectFactory.getObject(step.outputValueType());
+        private void handleSteps(WebDriverContext context, Box step, WebElement element) {
+            boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
+            if (step.wrap()) { // 子步骤的"outputPropertyName"不为null，box需要创建map把子步骤属性包起来
+                Map<String, Object> object = new HashMap<>();
                 context.pushResult(object);
             }
             String windowHandleId = webDriver.getWindowHandle();
@@ -279,7 +283,9 @@ public class WebDriverStepHandlerFactory {
                 WebDriverStepHandlerFactory.getHandler(webDriver, type).handle(context, s);
             }
             context.restoreElement(windowHandleId);
-            return step.outputValueType() != null ? context.popResult() : null;
+            if(step.wrap()) {
+                context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
+            }
         }
 
     }

@@ -29,12 +29,6 @@ public interface Step {
      */
     String type();
 
-    /**
-     *
-     * @return 步骤所在目标：webdriver（默认）或元素
-     */
-    String target();
-
     enum Type {
         BOX("box"), // 用于包含子步骤
         LOCATOR("locator"), // 用于定位元素，并保存id和元素关系，作为后续引用
