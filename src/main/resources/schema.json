@@ -6,7 +6,8 @@
       "type": "string"
     },
     "url": {
-      "type": "string"
+      "type": "string",
+      "hint": "if set cookie, please specify url(domain) first"
     },
     "settings": {
       "type": "object",
@@ -15,6 +16,10 @@
         "driverName": {
           "type": "string",
           "enum": ["chrome", "msedge", "firefox", "opera", "safari", "internet explorer"]
+        },
+        "debug": {
+          "type": "boolean",
+          "hint": "if set true, program exit without quit webdriver"
         },
         "arguments": {
           "type": "array",
@@ -45,6 +50,10 @@
           },
           "target": {
             "type": "string"
+          },
+          "noPushToContext": {
+            "type": "boolean",
+            "hint": "when loop elements whether push current item to context or not"
           },
           "wrap": {
             "type": "boolean",
@@ -119,6 +128,10 @@
           },
           "testValue": {
             "type": "string"
+          },
+          "ignoreNotApply": {
+            "type": "boolean",
+            "hint": "waiting element might not exist, ignore or throw Timeout exception"
           }
         }
       }

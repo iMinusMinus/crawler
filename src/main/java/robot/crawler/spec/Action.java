@@ -14,18 +14,20 @@ package robot.crawler.spec;
  * @param maxWaitTime 当actionName为wait时，传入最大等待时间
  * @param expectedCondition 当actionName为wait时，传入停止等待条件
  * @param testValue 当actionName为wait时，传入停止等待测试值
+ * @param ignoreNotApply 当不符合时是否忽略而不抛出异常
  */
 public record Action(String id, String name, String type, String target,
                      String actionName,
                      String cookies, String[] cookieNames, /* cookie management */
                      String inputValue, /* input */
                      int deltaX, int deltaY, String scrollTo, /* scroll */
-                     long minWaitTime, long maxWaitTime, String expectedCondition, String testValue /* wait condition */) implements Step {
+                     long minWaitTime, long maxWaitTime, String expectedCondition, String testValue, boolean ignoreNotApply /* wait condition */) implements Step {
 
     public enum Type {
         ADD_COOKIES("+cookies"),
         DELETE_COOKIE("-cookie"),
         CLEAN_COOKIE("-cookies"),
+        NAVIGATE("navigate"),
         INPUT("input"),
         CLICK("click"),
         SCREENSHOT("screenshot"),

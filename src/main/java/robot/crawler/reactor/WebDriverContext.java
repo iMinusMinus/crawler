@@ -28,7 +28,10 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
     @Override
     public void addElements(String id, List<WebElement> elements) {
         windowElements.computeIfAbsent(windows.peek(), (s) -> new ArrayList<>()).add(id);
-        elementsMap.put(id, elements);
+        List<WebElement> oldElements = elementsMap.put(id, elements);
+        if (oldElements != null) {
+            log.warn("key[{}] elements exist!", id);
+        }
     }
 
     public void removeElements(String id) {
@@ -43,7 +46,10 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
     @Override
     public void addElement(String id, WebElement element) {
         windowElements.computeIfAbsent(windows.peek(), (s) -> new ArrayList<>()).add(id);
-        elements.put(id, element);
+        WebElement oldElement = elements.put(id, element);
+        if (oldElement != null) {
+            log.warn("key[{}] element exist!", id);
+        }
     }
 
     public void removeElement(String id) {
@@ -79,7 +85,7 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
     public String destroyWindow() {
         String id = windows.pop();
         if (cleanElementsAfterClose) {
-            List<String> stored = windowElements.get(id);
+            List<String> stored = Optional.ofNullable(windowElements.get(id)).orElse(Collections.emptyList());
             for (String key : stored) {
                 removeElement(key);
                 removeElements(key);

@@ -1,15 +1,12 @@
 package robot.crawler.reactor;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.WheelInput;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.FluentWait;
 import robot.crawler.spec.Action;
 import robot.crawler.spec.Box;
 import robot.crawler.spec.Finder;
@@ -60,14 +57,12 @@ public class WebDriverStepHandlerFactory {
                 throw new IllegalArgumentException("missing xpath/css selector for locator");
             }
             WebElement scope = context.currentElement(webDriver.getWindowHandle());
-            List<WebElement> elements;
-            WebElement element;
+            boolean findInScope = scope != null && !step.escapeScope();
+            List<WebElement> elements = findInScope ? scope.findElements(locator) : webDriver.findElements(locator);
             if (step.multi()) {
-                elements = scope != null ? scope.findElements(locator) : webDriver.findElements(locator);
                 context.addElements(step.id(),  elements);
-            } else {
-                element = scope != null ? scope.findElement(locator) : webDriver.findElement(locator);
-                context.addElement(step.id(), element);
+            } else if (!elements.isEmpty()){
+                context.addElement(step.id(), elements.get(0));
             }
         }
     }
@@ -80,11 +75,18 @@ public class WebDriverStepHandlerFactory {
 
         private final Map<String, String> windows = new HashMap<>();
 
+        private static final String BACK = "back";
+
+        private static final String FORWARD = "forward";
+
+        private static final String REFRESH = "refresh";
+
         ActionHandler(WebDriver webDriver) {
             this.webDriver = webDriver;
             expectedConditions.put("numberOfWindows", (expectWindows) -> ExpectedConditions.numberOfWindowsToBe(Integer.parseInt(expectWindows)));
-            expectedConditions.put("elementPresence", (selector) -> (ExpectedCondition<Boolean>) driver -> driver.findElement(By.cssSelector(selector)) != null
-                    || driver.findElement(By.xpath(selector)) != null);
+            expectedConditions.put("elementPresence", (selector) -> (ExpectedCondition<Boolean>) driver -> !driver.findElements(By.cssSelector(selector)).isEmpty()
+                    || !driver.findElements(By.xpath(selector)).isEmpty());
+            expectedConditions.put("urlContains", (segment)-> ExpectedConditions.urlContains(segment));
         }
 
         @Override
@@ -108,6 +110,23 @@ public class WebDriverStepHandlerFactory {
                     }
                 }
                 case CLEAN_COOKIE -> webDriver.manage().deleteAllCookies();
+                case NAVIGATE -> {
+                    String target = step.target();
+                    assert target != null;
+                    if (BACK.equals(target)) {
+                        webDriver.navigate().back();
+                    } else if (FORWARD.equals(target)) {
+                        webDriver.navigate().forward();
+                    } else if (REFRESH.equals(target)) {
+                        webDriver.navigate().refresh();
+                    } else {
+                        webDriver.navigate().to(target);
+                    }
+                    // 移除之前页面保存的信息
+                    String windowId = context.currentWindow();
+                    context.destroyWindow();
+                    context.activeWindow(windowId);
+                }
                 case INPUT -> {
                     WebElement input = context.getElement(step.target());
                     new Actions(webDriver).sendKeys(input, step.inputValue()).perform();
@@ -130,15 +149,23 @@ public class WebDriverStepHandlerFactory {
                     context.addScreenshot(step.id(), capture.getScreenshotAs(OutputType.BYTES));
                 }
                 case WAIT -> {
-                    long maxWaitTime = step.maxWaitTime() == 0 ? 10000 : step.maxWaitTime();
-                    long waitTime = ThreadLocalRandom.current().nextLong(step.minWaitTime(), maxWaitTime);
+                    assert step.minWaitTime() <= step.maxWaitTime();
+                    long waitTime = ThreadLocalRandom.current().nextLong(step.minWaitTime(), step.maxWaitTime());
                     Function<String, ExpectedCondition<Boolean>> expectedCondition = expectedConditions.get(step.expectedCondition());
                     if (expectedCondition == null) {
                         log.error("given ExpectedFunction: {}, current supported ExpectedFunction: {}", step.expectedCondition(), expectedConditions.keySet());
                         throw new IllegalArgumentException("unsupported ExpectedFunction id: " + step.expectedCondition());
                     }
-                    new WebDriverWait(webDriver, Duration.ofMillis(waitTime))
-                            .until(expectedCondition.apply(step.testValue()));
+                    try {
+                        new FluentWait<>(webDriver).
+                                withTimeout(Duration.ofMillis(waitTime))
+                                .ignoring(NoSuchElementException.class)
+                                .until(expectedCondition.apply(step.testValue()));
+                    } catch (TimeoutException te) {
+                        if (!step.ignoreNotApply()) {
+                            throw te;
+                        }
+                    }
                 }
                 case SWITCH -> {
                     log.debug("opened windows/tabs: {}", webDriver.getWindowHandles());
@@ -189,14 +216,11 @@ public class WebDriverStepHandlerFactory {
             WebElement scope = context.currentElement(webDriver.getWindowHandle());
             WebElement target;
             if (scope == null && locator != null) {
-                target = webDriver.findElement(locator);
+                target = webDriver.findElements(locator).stream().findFirst().orElse(null);
             } else if (scope != null && locator != null) {
-                target = scope.findElement(locator);
+                target = scope.findElements(locator).stream().findFirst().orElse(null);
             } else {
                 target = scope;
-            }
-            if (target == null) {
-                throw new IllegalArgumentException("dom content for which element? please specify xpath/selector");
             }
             Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
             if (type == null) {
@@ -207,6 +231,9 @@ public class WebDriverStepHandlerFactory {
         }
 
         private String resolve(WebElement element, Finder.ValueGetterType type, Finder hint) {
+            if (element == null) {
+                return null;
+            }
             String value;
             switch (type) {
                 case TEXT -> value = element.getText();
@@ -235,13 +262,17 @@ public class WebDriverStepHandlerFactory {
         @Override
         public void handle(WebDriverContext context, Box step) {
             log.debug("handle box step: {}", step);
+            List<WebElement> elements= context.getElements(step.target());
             WebElement webElement = context.getElement(step.target());
-            List<WebElement> elements = context.getElements(step.target());
             if (elements != null) { // XX列表
                 boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
                 if (isRootObject) {
                     List<Map<String, Object>> root = new ArrayList<>();
                     context.initialResult(root);
+                    // 不存在分页时处理
+                    if (elements.isEmpty() && step.noPushToContext()) {
+                        elements.add(null);
+                    }
                 } else if (step.outputValueType() != null){ // 属性类型为list/object
                     Object value = ObjectFactory.getObject(step.outputValueType());
                     context.fillResult(step.outputPropertyName(), value);
@@ -274,7 +305,9 @@ public class WebDriverStepHandlerFactory {
                 context.pushResult(object);
             }
             String windowHandleId = webDriver.getWindowHandle();
-            context.snapshotElement(windowHandleId, element);
+            if (!step.noPushToContext()) {
+                context.snapshotElement(windowHandleId, element);
+            }
             for (Step s : step.steps()) {
                 Step.Type type = Step.Type.getInstance(s.type());
                 if (type == null) {
@@ -282,7 +315,9 @@ public class WebDriverStepHandlerFactory {
                 }
                 WebDriverStepHandlerFactory.getHandler(webDriver, type).handle(context, s);
             }
-            context.restoreElement(windowHandleId);
+            if (!step.noPushToContext()) {
+                context.restoreElement(windowHandleId);
+            }
             if(step.wrap()) {
                 context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
             }

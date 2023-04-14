@@ -46,7 +46,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         } else {
             throw new RuntimeException("当前仅支持chrome、edge，请联系开发者");
         }
-        context = new WebDriverContext(false);
+        context = new WebDriverContext(true);
         webDriver = new EventFiringDecorator(new WebDriverWindowsEventListener(context), new WebDriverErrorEventListener())
                 .decorate(delegate);
     }
