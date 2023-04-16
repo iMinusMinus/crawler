@@ -2,7 +2,6 @@ package robot.crawler.reactor;
 
 import org.jsoup.Connection;
 import org.jsoup.helper.HttpConnection;
-import robot.crawler.spec.Action;
 import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
@@ -40,7 +39,7 @@ public class JsoupTaskExecutor implements TaskExecutor {
         for (Step step : steps) {
             Step.Type type = Step.Type.getInstance(step.type());
             assert type != null;
-            JsoupStepHandlerFactory.getHandler(connection, type).handle(context, step);
+            JsoupStepHandlerFactory.getHandler(connection, type).execute(context, step);
         }
         return context.getResult();
     }

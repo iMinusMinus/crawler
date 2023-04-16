@@ -1,6 +1,7 @@
 package robot.crawler.reactor;
 
 import org.jsoup.Connection;
+import org.jsoup.nodes.Element;
 import robot.crawler.spec.Action;
 import robot.crawler.spec.Box;
 import robot.crawler.spec.Finder;
@@ -28,7 +29,7 @@ public abstract class JsoupStepHandlerFactory {
         });
     }
 
-    private static class BoxHandler implements StepHandler<JsoupContext, Box> {
+    private static class BoxHandler implements StepHandler<JsoupContext, Box, Element> {
 
         private final Connection connection;
 
@@ -42,7 +43,7 @@ public abstract class JsoupStepHandlerFactory {
         }
     }
 
-    private static class LocatorHandler implements StepHandler<JsoupContext, Locator> {
+    private static class LocatorHandler implements StepHandler<JsoupContext, Locator, Element> {
 
         private final Connection connection;
 
@@ -56,7 +57,7 @@ public abstract class JsoupStepHandlerFactory {
         }
     }
 
-    private static class ActionHandler implements StepHandler<JsoupContext, Action> {
+    private static class ActionHandler implements StepHandler<JsoupContext, Action, Element> {
 
         private final Connection connection;
 
@@ -80,7 +81,7 @@ public abstract class JsoupStepHandlerFactory {
         }
     }
 
-    private static class FinderHandler implements StepHandler<JsoupContext, Finder> {
+    private static class FinderHandler implements StepHandler<JsoupContext, Finder, Element> {
 
         private final Connection connection;
 

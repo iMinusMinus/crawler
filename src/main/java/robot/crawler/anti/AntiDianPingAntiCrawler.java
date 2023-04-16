@@ -30,6 +30,7 @@ public class AntiDianPingAntiCrawler {
 
     private static final Logger log = LoggerFactory.getLogger(AntiDianPingAntiCrawler.class);
 
+    @Deprecated
     public static String shopStarConverter(String cssClass) {
         String[] attributes = cssClass.split(" ");
         for (String attribute : attributes) {
@@ -41,19 +42,23 @@ public class AntiDianPingAntiCrawler {
         return null;
     }
 
+    @Deprecated
     public static String categoryConverter(String url) {
         return url.substring(url.lastIndexOf("/") + 1);
     }
 
+    @Deprecated
     public static String sunIndustryConverter(String url) {
         String tmp = url.substring(0, url.lastIndexOf("/"));
         return tmp.substring(tmp.lastIndexOf("/") + 1);
     }
 
+    @Deprecated
     public static String areaConverter(String url) {
         return url.substring(DIANPING_URL.length());
     }
 
+    @Deprecated
     public static String scoreConverter(String scoreText) {
         try {
             return scoreText.split(SCORE_SEPARATOR)[1];
@@ -63,6 +68,7 @@ public class AntiDianPingAntiCrawler {
         }
     }
 
+    @Deprecated
     public static String reviewQuantityConverter(String rawQuantity) {
         try {
             return rawQuantity.substring(1, rawQuantity.length() - 1);
@@ -71,4 +77,6 @@ public class AntiDianPingAntiCrawler {
             return rawQuantity;
         }
     }
+
+    // TODO dianping 返回标题为"403 Forbidden"
 }

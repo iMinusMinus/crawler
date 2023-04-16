@@ -55,6 +55,23 @@
             "type": "boolean",
             "hint": "when loop elements whether push current item to context or not"
           },
+          "hook": {
+            "type": "object",
+            "properties": {
+              "doBefore": {
+                "type": "string",
+                "hint": "janino script"
+              },
+              "doAfter": {
+                "type": "string",
+                "hint": "janino script"
+              },
+              "doThrowing": {
+                "type": "string",
+                "hint": "janino script"
+              }
+            }
+          },
           "wrap": {
             "type": "boolean",
             "hint": "wrap item with map if set true"

@@ -7,19 +7,11 @@ public abstract class ObjectFactory {
 
     public static Object getObject(String type) {
         assert type != null;
-        Object value;
-        switch (type) {
-            case "list":
-            case "array":
-                value = new ArrayList<>();
-                break;
-            case "object":
-            case "map":
-                value = new HashMap<>();
-                break;
-            default: throw new IllegalArgumentException("unknown object type: " + type);
-        }
-        return value;
+        return switch (type) {
+            case "list", "array" -> new ArrayList<>();
+            case "object", "map" -> new HashMap<>();
+            default -> throw new IllegalArgumentException("unknown object type: " + type);
+        };
     }
 
 }

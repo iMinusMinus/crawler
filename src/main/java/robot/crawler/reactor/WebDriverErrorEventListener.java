@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 
 public final class WebDriverErrorEventListener implements WebDriverListener {
 
-    private static Logger log = LoggerFactory.getLogger(WebDriverErrorEventListener.class);
+    private static final Logger log = LoggerFactory.getLogger(WebDriverErrorEventListener.class);
 
     @Override
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {

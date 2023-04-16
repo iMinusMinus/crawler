@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.crawler.spec.Step;
 
-public interface StepHandler<CTX extends Context, STEP extends Step> {
+public interface StepHandler<CTX extends Context<E>, STEP extends Step, E> {
 
     Logger log = LoggerFactory.getLogger(StepHandler.class);
 
@@ -16,7 +16,7 @@ public interface StepHandler<CTX extends Context, STEP extends Step> {
             handle(context, step);
             afterHandle(context, step);
         } catch (Exception e) {
-            onThrow(e);
+            onThrow(context, step, e);
         }
     }
 
@@ -41,7 +41,8 @@ public interface StepHandler<CTX extends Context, STEP extends Step> {
         return true;
     }
 
-    default void onThrow(Exception e) {
+    default void onThrow(CTX context, STEP step, Exception e) {
+        log.error("handle step[name={}] error", step.name());
         throw new RuntimeException(e);
     }
 }

@@ -116,11 +116,13 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
 
     @Override
     public void pushResult(Object object) {
+        log.debug("push++, current type: {}", object != null ? object.getClass(): null);
         result.push(object);
     }
 
     @Override
     public Object popResult() {
+        log.debug("pop++");
         return result.pop();
     }
 
@@ -129,6 +131,7 @@ public record WebDriverContext(boolean cleanElementsAfterClose) implements Conte
         if (!result.isEmpty()) {
             throw new RuntimeException("result has been initialized!");
         }
+        log.debug("push root list");
         result.push(data);
     }
 

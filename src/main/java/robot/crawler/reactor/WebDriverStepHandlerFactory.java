@@ -37,7 +37,7 @@ public class WebDriverStepHandlerFactory {
         });
     }
 
-    private static class LocatorHandler implements StepHandler<WebDriverContext, Locator> {
+    private static class LocatorHandler implements StepHandler<WebDriverContext, Locator, WebElement> {
 
         private final WebDriver webDriver;
 
@@ -67,7 +67,7 @@ public class WebDriverStepHandlerFactory {
         }
     }
 
-    private static class ActionHandler implements StepHandler<WebDriverContext, Action> {
+    private static class ActionHandler implements StepHandler<WebDriverContext, Action, WebElement> {
 
         private final WebDriver webDriver;
 
@@ -84,9 +84,9 @@ public class WebDriverStepHandlerFactory {
         ActionHandler(WebDriver webDriver) {
             this.webDriver = webDriver;
             expectedConditions.put("numberOfWindows", (expectWindows) -> ExpectedConditions.numberOfWindowsToBe(Integer.parseInt(expectWindows)));
-            expectedConditions.put("elementPresence", (selector) -> (ExpectedCondition<Boolean>) driver -> !driver.findElements(By.cssSelector(selector)).isEmpty()
+            expectedConditions.put("elementPresence", (selector) -> driver -> !driver.findElements(By.cssSelector(selector)).isEmpty()
                     || !driver.findElements(By.xpath(selector)).isEmpty());
-            expectedConditions.put("urlContains", (segment)-> ExpectedConditions.urlContains(segment));
+            expectedConditions.put("urlContains", ExpectedConditions::urlContains);
         }
 
         @Override
@@ -113,14 +113,11 @@ public class WebDriverStepHandlerFactory {
                 case NAVIGATE -> {
                     String target = step.target();
                     assert target != null;
-                    if (BACK.equals(target)) {
-                        webDriver.navigate().back();
-                    } else if (FORWARD.equals(target)) {
-                        webDriver.navigate().forward();
-                    } else if (REFRESH.equals(target)) {
-                        webDriver.navigate().refresh();
-                    } else {
-                        webDriver.navigate().to(target);
+                    switch (target) {
+                        case BACK -> webDriver.navigate().back();
+                        case FORWARD -> webDriver.navigate().forward();
+                        case REFRESH -> webDriver.navigate().refresh();
+                        default -> webDriver.navigate().to(target);
                     }
                     // 移除之前页面保存的信息
                     String windowId = context.currentWindow();
@@ -195,7 +192,7 @@ public class WebDriverStepHandlerFactory {
         }
     }
 
-    private static class FinderHandler implements StepHandler<WebDriverContext, Finder> {
+    private static class FinderHandler implements StepHandler<WebDriverContext, Finder, WebElement> {
         private final WebDriver webDriver;
 
         FinderHandler(WebDriver webDriver) {
@@ -224,7 +221,8 @@ public class WebDriverStepHandlerFactory {
             }
             Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
             if (type == null) {
-                throw new IllegalArgumentException("supported value getter type: " + Finder.ValueGetterType.values().toString());
+                log.warn("supported getter type: {}, '{}' was unknown", Arrays.toString(Finder.ValueGetterType.values()), step.valueGetter());
+                throw new IllegalArgumentException("unknown value getter type: " + step.valueGetter());
             }
             String value = resolve(target, type, step);
             context.fillResult(step.outputPropertyName(), convert(value, step.valueConverter()));
@@ -251,7 +249,7 @@ public class WebDriverStepHandlerFactory {
         }
     }
 
-    private static class BoxHandler implements StepHandler<WebDriverContext, Box> {
+    private static class BoxHandler implements StepHandler<WebDriverContext, Box, WebElement> {
 
         private final WebDriver webDriver;
 
@@ -329,6 +327,18 @@ public class WebDriverStepHandlerFactory {
             if(step.wrap()) {
                 context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
             }
+        }
+
+        @Override
+        public void onThrow(WebDriverContext context, Box step, Exception e) {
+            if (step.hook() != null && step.hook().doThrowing() != null) {
+                 WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doThrowing());
+                 return;
+            }
+            if ((!Box.ROOT_OBJECT_ID.equals(step.outputPropertyName()) && step.outputValueType() != null) || step.wrap()) {
+                context.popResult();
+            }
+            throw new RuntimeException(e);
         }
 
     }

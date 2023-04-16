@@ -10,7 +10,7 @@ import java.util.Set;
 
 public record WebDriverWindowsEventListener(WebDriverContext context) implements WebDriverListener {
 
-    private static Logger log = LoggerFactory.getLogger(WebDriverWindowsEventListener.class);
+    private static final Logger log = LoggerFactory.getLogger(WebDriverWindowsEventListener.class);
 
     private static final Set<String> openedWindows = new HashSet<>();
 
