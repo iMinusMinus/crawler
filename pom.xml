@@ -34,6 +34,34 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>4.6.0</version> <!-- selenium-http-jdk-client require version above 4.5.0, but bug exist in module-info file of selenium-remote-driver which version above 4.6.0(beyond 4.8.3): 找不到模块: processed.async.http.client 找不到模块: processed.jcommander -->
+            <exclusions>
+                <!-- due to selenium-remote-driver treat 'async.http.client' as requires(not requires static), we cannot exclude async-http-client -->
+<!--                <exclusion>-->
+<!--                    <groupId>org.asynchttpclient</groupId>-->
+<!--                    <artifactId>async-http-client</artifactId>-->
+<!--                </exclusion>-->
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-devtools-v85</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-devtools-v105</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-devtools-v106</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-devtools-v107</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-devtools-v110</artifactId><!-- Unable to find CDP implementation matching {ddd}，浏览器太新则还没有匹配的CDP，手动添加合适的版本 -->
+            <version>4.8.3</version>
         </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
@@ -49,6 +77,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.13.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>janino</artifactId>
+            <version>3.1.9</version>
         </dependency>
     </dependencies>
 

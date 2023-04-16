@@ -3,9 +3,10 @@
   "url": "https://www.dianping.com/",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
-    "driverName": "chrome",
+    "driverName": "msedge",
     "debug": true,
-    "arguments": []
+    "arguments": [],
+    "hint": "如果使用msedge启动失败，可以设置启动参数'webdriver.http.factory=jdk-http-client'来尝试解决"
   },
   "steps": [
     {
@@ -18,19 +19,23 @@
       "name": "切换页面",
       "type": "action",
       "actionName": "navigate",
-      "target": "${url.areaWithCategory}"
+      "target": "${url.quarterWithCategory}"
     },
     {
       "id": "locate-page-num",
       "name": "定位分页数",
       "type": "locator",
       "selector": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a.cur,.PageLink",
-      "multi": true
+      "multi": true,
+      "hint": "locator得到的WebElement个数和循环次数可能不匹配：比如仅1页不显示分页栏，多于10页得到的元素个数仍为10"
     },
     {
       "name": "分页抓取目标",
       "type": "box",
       "outputPropertyName": "$",
+      "hook": {
+        "doBefore": "import org.openqa.selenium.By; import java.util.List; import java.util.ArrayList; import org.openqa.selenium.WebElement; List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); if (elements.isEmpty()) {context.addElements(\"locate-page-num\", List.of(null));} else {int pageNum = Integer.parseInt(((WebElement) elements.get(0)).getText()); List list = new ArrayList(pageNum);  for (int i = 0; i < pageNum; i++) {list.add(null);} context.addElements(\"locate-page-num\", list);} return true;"
+      },
       "target": "locate-page-num",
       "noPushToContext": true,
       "steps": [

@@ -5,6 +5,8 @@ module crawler {
 
     requires com.fasterxml.jackson.databind;
 
+    requires janino;
+
     // webdriver
     requires org.seleniumhq.selenium.api;
     requires org.seleniumhq.selenium.remote_driver;
@@ -16,7 +18,8 @@ module crawler {
     //jsoup
     requires org.jsoup;
 
-    exports robot.crawler.reactor to org.seleniumhq.selenium.support;
+    // exports to selenium and janino(janino was unnamed module, so exports to ALL_UNNAMED )
+    exports robot.crawler.reactor;
 
     opens robot.crawler to jcommander;
     opens robot.crawler.spec to com.fasterxml.jackson.databind;

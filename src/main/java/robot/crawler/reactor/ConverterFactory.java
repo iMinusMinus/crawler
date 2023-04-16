@@ -1,5 +1,7 @@
 package robot.crawler.reactor;
 
+import org.codehaus.janino.ExpressionEvaluator;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,10 +26,34 @@ public class ConverterFactory {
                 case "java.lang.Integer":
                     converter = Integer::parseInt;
                     break;
-                default: throw new IllegalArgumentException("unknown converter: " + type);
+                default: converter = new ExpressionConverter(type);
             }
             return converter;
         });
     }
+
+    private static class ExpressionConverter implements ValueConverter {
+
+        private final String expression;
+
+        public ExpressionConverter(String expression) {
+            this.expression = expression;
+        }
+
+        @Override
+        public Object convert(String raw) {
+            try {
+                ExpressionEvaluator ee = new ExpressionEvaluator();
+                ee.setTargetVersion(8);
+                ee.setSourceVersion(8);
+                ee.setParameters(new String[]{"arg"}, new Class[]{String.class});
+                ee.cook(expression);
+                return ee.evaluate(raw);
+            } catch (Exception e) {
+                return raw;
+            }
+        }
+    }
+
 
 }

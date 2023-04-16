@@ -80,7 +80,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             if (type == null) {
                 throw new IllegalArgumentException("step missing type: " + step);
             }
-            WebDriverStepHandlerFactory.getHandler(webDriver, type).handle(context, step);
+            WebDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, step);
         }
         return context.getResult();
     }

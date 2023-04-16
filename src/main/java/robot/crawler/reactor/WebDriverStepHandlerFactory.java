@@ -260,6 +260,14 @@ public class WebDriverStepHandlerFactory {
         }
 
         @Override
+        public boolean beforeHandle(WebDriverContext context, Box step) {
+            if (step.hook() != null && step.hook().doBefore() != null) {
+                return (Boolean) WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doBefore());
+            }
+            return true;
+        }
+
+        @Override
         public void handle(WebDriverContext context, Box step) {
             log.debug("handle box step: {}", step);
             List<WebElement> elements= context.getElements(step.target());
@@ -313,7 +321,7 @@ public class WebDriverStepHandlerFactory {
                 if (type == null) {
                     throw new IllegalArgumentException("step missing type: " + step);
                 }
-                WebDriverStepHandlerFactory.getHandler(webDriver, type).handle(context, s);
+                WebDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, s);
             }
             if (!step.noPushToContext()) {
                 context.restoreElement(windowHandleId);
