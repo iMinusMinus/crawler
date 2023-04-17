@@ -193,7 +193,10 @@ public class WebDriverStepHandlerFactory {
     }
 
     private static class FinderHandler implements StepHandler<WebDriverContext, Finder, WebElement> {
+
         private final WebDriver webDriver;
+
+        private static final String RAW_VALUE_PROPERTY_NAME_FMT = "__%1$s__";
 
         FinderHandler(WebDriver webDriver) {
             this.webDriver = webDriver;
@@ -219,13 +222,20 @@ public class WebDriverStepHandlerFactory {
             } else {
                 target = scope;
             }
+            if (target == null && step.required()) {
+                throw new RuntimeException("element not found, may be wrong target/scope, or loaded page content not your expect");
+            }
             Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
             if (type == null) {
                 log.warn("supported getter type: {}, '{}' was unknown", Arrays.toString(Finder.ValueGetterType.values()), step.valueGetter());
                 throw new IllegalArgumentException("unknown value getter type: " + step.valueGetter());
             }
             String value = resolve(target, type, step);
-            context.fillResult(step.outputPropertyName(), convert(value, step.valueConverter()));
+            Object converted = convert(value, step.valueConverter());
+            context.fillResult(step.outputPropertyName(), converted);
+            if (step.outputPropertyName() != null && !Objects.equals(value, converted)) {
+                context.fillResult(RAW_VALUE_PROPERTY_NAME_FMT.formatted(step.outputPropertyName()), value);
+            }
         }
 
         private String resolve(WebElement element, Finder.ValueGetterType type, Finder hint) {
