@@ -69,7 +69,8 @@
               "valueGetter": "attribute",
               "attributeKey": "data-shopid",
               "outputPropertyName": "shopId",
-              "outputValueType": "string"
+              "outputValueType": "string",
+              "required": true
             },
             {
               "name": "获取店铺名称",
@@ -77,7 +78,8 @@
               "selector": "div.txt > div.tit > a > h4",
               "valueGetter": "text",
               "outputPropertyName": "shopName",
-              "outputValueType": "string"
+              "outputValueType": "string",
+              "required": true
             },
             {
               "name": "获取店铺评分(0-5, 间距0.5)",
@@ -87,7 +89,7 @@
               "attributeKey": "class",
               "outputPropertyName": "star",
               "outputValueType": "string",
-              "valueConverter": "dianping.shopStarConverter"
+              "valueConverter": "new java.math.BigDecimal(arg.split(\" \")[1].substring(5)).divide(java.math.BigDecimal.TEN, 1, java.math.RoundingMode.HALF_UP).toString()"
             },
             {
               "name": "获取店铺评论数",
@@ -111,7 +113,8 @@
               "selector": "div.txt > div.tag-addr > a:nth-child(1) > span",
               "valueGetter": "text",
               "outputPropertyName": "categoryName",
-              "outputValueType": "string"
+              "outputValueType": "string",
+              "required": true
             },
             {
               "name": "获取店铺分类码: https://www.dianping.com/{city}/{subIndustry}/{category}",
@@ -121,7 +124,8 @@
               "attributeKey": "href",
               "outputPropertyName": "category",
               "outputValueType": "string",
-              "valueConverter": "dianping.categoryConverter",
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
+              "required": true,
               "hint": "category: g[0-9]{3}为类别，g[0-9]{4}为小类别"
             },
             {
@@ -132,7 +136,8 @@
               "attributeKey": "href",
               "outputPropertyName": "subIndustry",
               "outputValueType": "string",
-              "valueConverter": "dianping.subIndustryConverter",
+              "valueConverter": "arg.split(\"/\")[4]",
+              "required": true,
               "hint": "subIndustry: ch0为不限频道，ch[0-9]{2}为生活服务, ch[0-9]{5}为公共服务"
             },
             {
@@ -141,7 +146,8 @@
               "selector": "div.txt > div.tag-addr > a:nth-child(3) > span",
               "valueGetter": "text",
               "outputPropertyName": "quarterName",
-              "outputValueType": "string"
+              "outputValueType": "string",
+              "required": true
             },
             {
               "name": "获取店铺所在商圈码",
@@ -151,7 +157,8 @@
               "attributeKey": "href",
               "outputPropertyName": "quarter",
               "outputValueType": "string",
-              "valueConverter": "dianping.areaConverter"
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
+              "required": true
             },
             {
               "id": "shop-coupons",
@@ -228,7 +235,7 @@
                   "outputPropertyName": "tasteScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "dianping.score"
+                  "valueConverter": "arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取环境评价",
@@ -237,7 +244,7 @@
                   "outputPropertyName": "environmentScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "dianping.score"
+                  "valueConverter": "arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取服务评价",
@@ -246,7 +253,7 @@
                   "outputPropertyName": "serviceScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "dianping.score"
+                  "valueConverter": "arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取地址",
@@ -254,7 +261,8 @@
                   "selector": "#address",
                   "outputPropertyName": "street",
                   "valueGetter": "text",
-                  "outputValueType": "string"
+                  "outputValueType": "string",
+                  "required": true
                 },
                 {
                   "name": "获取电话",
@@ -263,7 +271,7 @@
                   "outputPropertyName": "tel",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "dianping.score"
+                  "valueConverter": "arg.split(\"：\")[1]"
                 },
                 {
                   "id": "shop-site-more-info",
@@ -315,7 +323,7 @@
                   "outputPropertyName": "favorReviews",
                   "valueGetter": "text",
                   "outputValueType": "number",
-                  "valueConverter": "dianping.reviewQuantity"
+                  "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
                 },
                 {
                   "name": "获取中评数",
@@ -324,7 +332,7 @@
                   "outputPropertyName": "neutralReviews",
                   "valueGetter": "text",
                   "outputValueType": "number",
-                  "valueConverter": "dianping.reviewQuantity"
+                  "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
                 },
                 {
                   "name": "获取差评数",
@@ -333,7 +341,7 @@
                   "outputPropertyName": "badReviews",
                   "valueGetter": "text",
                   "outputValueType": "number",
-                  "valueConverter": "dianping.reviewQuantity"
+                  "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
                 }
               ]
             },
