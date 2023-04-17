@@ -79,6 +79,10 @@
           "steps": {
             "type": "array"
           },
+          "required": {
+            "type": "string",
+            "hint": "要获取的字段是否必须"
+          },
           "xpath": {
             "type": "string",
             "hint": "循环内注意选择器的使用，不要误选择了所有"
