@@ -10,7 +10,7 @@
       "name": "注入cookie",
       "type": "action",
       "actionName": "+cookies",
-      "cookies": ""
+      "cookies": "${cookie}"
     },
     {
       "id": "locate-switch-city",
@@ -81,13 +81,12 @@
           "wrap": true,
           "steps": [
             {
-              "name": "获取城市拼音",
+              "name": "获取城市拼音: //www.dianping.com/{cityPinyinSpelling}/ch0",
               "type": "finder",
               "outputPropertyName": "cityPinyinSpelling",
               "valueGetter": "attribute",
               "attributeKey": "href",
-              "valueConverter": "str",
-              "hint": "//www.dianping.com/{cityPinyinSpelling}"
+              "valueConverter": "arg.split(\"/\")[3]"
             },
             {
               "name": "获取城市中文名称",

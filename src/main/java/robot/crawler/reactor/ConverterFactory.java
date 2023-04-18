@@ -50,7 +50,7 @@ public class ConverterFactory {
                 ee.cook(expression);
                 return ee.evaluate(raw);
             } catch (Exception e) {
-                return raw;
+                return null;
             }
         }
     }

@@ -1,5 +1,5 @@
 {
-  "id": "dianping-category",
+  "id": "dianping-${city}-category",
   "url": "https://www.dianping.com/",
   "settings": {
     "driverName": "chrome",
@@ -10,7 +10,7 @@
       "name": "注入cookie",
       "type": "action",
       "actionName": "+cookies",
-      "cookies": ""
+      "cookies": "${cookie}"
     },
     {
       "id": "locate-city-category",
@@ -47,13 +47,13 @@
       "wrap": true,
       "steps": [
         {
-          "name": "获取子行业代码",
+          "name": "获取子行业代码: /{city}/{subIndustry}",
           "selector": "dt > a",
           "type": "finder",
           "outputPropertyName": "subIndustry",
           "valueGetter": "attribute",
           "attributeKey": "href",
-          "hint": "/{city}/{subIndustry}"
+          "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)"
         },
         {
           "name": "获取子行业名称",
@@ -85,13 +85,13 @@
               "valueGetter": "text"
             },
             {
-              "name": "获取分类代码",
+              "name": "获取分类代码: //www.dianping.com/{city}/{subIndustry}/{category}",
               "type": "finder",
               "selector": "a",
               "outputPropertyName": "category",
               "valueGetter": "attribute",
               "attributeKey": "href",
-              "hint": "//www.dianping.com/{city}/{subIndustry}/{category}"
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)"
             }
           ]
         }

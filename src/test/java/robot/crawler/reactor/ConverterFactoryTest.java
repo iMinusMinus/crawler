@@ -7,6 +7,12 @@ import org.junit.jupiter.api.Test;
 public class ConverterFactoryTest {
 
     @Test
+    public void testCity() {
+        String subIndustry = (String) ConverterFactory.getConverter("arg.split(\"/\")[3]").convert("https://www.dianping.com/anshun/ch0");
+        Assertions.assertEquals("anshun", subIndustry);
+    }
+
+    @Test
     @Disabled // FIXME 正则在其他地方正常匹配，ide中不正确
     public void testStar() {
         String arg = "star star_35 star_sml";
