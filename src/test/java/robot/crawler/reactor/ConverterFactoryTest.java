@@ -21,6 +21,13 @@ public class ConverterFactoryTest {
     }
 
     @Test
+    public void testCommentScore() {
+        String arg = "sml-rank-stars sml-str50";
+        String score = (String) ConverterFactory.getConverter("new java.math.BigDecimal(arg.split(\" \")[1].substring(7)).divide(java.math.BigDecimal.TEN, 1, java.math.RoundingMode.HALF_UP).toString()").convert(arg);
+        Assertions.assertEquals("5.0", score);
+    }
+
+    @Test
     public void testSubIndustry() {
         String subIndustry = (String) ConverterFactory.getConverter("arg.split(\"/\")[4]").convert("https://www.dianping.com/wuhan/ch10/g116");
         Assertions.assertEquals("ch10", subIndustry);
@@ -46,7 +53,7 @@ public class ConverterFactoryTest {
 
     @Test
     public void testTel() {
-        String tels = (String) ConverterFactory.getConverter("arg.split(\"：\")[1]").convert("电话：027-87377077 17362976059");
+        String tels = (String) ConverterFactory.getConverter("\"电话： 无 添加\".equals(arg) ? null : arg.split(\"：\")[1].trim()").convert("电话：027-87377077 17362976059");
         Assertions.assertEquals("027-87377077 17362976059", tels);
     }
 
@@ -54,5 +61,12 @@ public class ConverterFactoryTest {
     public void testReviewQuantity() {
         Integer quantity = (Integer) ConverterFactory.getConverter("Integer.parseInt(arg.substring(1, arg.length() - 1))").convert("(110)");
         Assertions.assertEquals(110, quantity);
+    }
+
+    @Test
+    public void testAddress() {
+        String arg = "\\n        花园路洪楼印象城聚隆广场3号楼2705(琥珀安泊酒店楼上)\\n";
+        String addr = (String) ConverterFactory.getConverter("arg.translateEscapes().trim()").convert(arg);
+        Assertions.assertEquals("花园路洪楼印象城聚隆广场3号楼2705(琥珀安泊酒店楼上)", addr);
     }
 }

@@ -1,5 +1,5 @@
 {
-  "id": "dianping-(pinyin)-(ch\\d+)-(g\\d+)(r\\d+)",
+  "id": "dianping-${cityPinyinSpelling}-${subIndustry}-${category}${quarter}",
   "url": "https://www.dianping.com/",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
@@ -34,7 +34,7 @@
       "type": "box",
       "outputPropertyName": "$",
       "hook": {
-        "doBefore": "import org.openqa.selenium.By; import java.util.List; import java.util.ArrayList; import org.openqa.selenium.WebElement; List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); if (elements.isEmpty()) {context.addElements(\"locate-page-num\", List.of(null));} else {int pageNum = Integer.parseInt(((WebElement) elements.get(0)).getText()); List list = new ArrayList(pageNum);  for (int i = 0; i < pageNum; i++) {list.add(null);} context.addElements(\"locate-page-num\", list);} return true;"
+        "doBefore": "import org.openqa.selenium.By; import java.util.List; import java.util.ArrayList; import org.openqa.selenium.WebElement; import robot.crawler.reactor.MoonlightBox; List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); if (elements.isEmpty()) {context.addElements(\"locate-page-num\", List.of(new MoonlightBox(\"mock\")));} else {int pageNum = Integer.parseInt(((WebElement) elements.get(0)).getText()); List list = new ArrayList(pageNum);  for (int i = 0; i < pageNum; i++) {list.add(new MoonlightBox(\"mock\"));} context.addElements(\"locate-page-num\", list);} return true;"
       },
       "target": "locate-page-num",
       "noPushToContext": true,
@@ -235,7 +235,7 @@
                   "outputPropertyName": "tasteScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "arg.split(\"：\")[1]"
+                  "valueConverter": "\"口味：-\".equals(arg) ? null : arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取环境评价",
@@ -244,25 +244,27 @@
                   "outputPropertyName": "environmentScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "arg.split(\"：\")[1]"
+                  "valueConverter": "\"环境：-\".equals(arg) ? null : arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取服务评价",
                   "type": "finder",
-                  "selector": "#comment_score > span:nth-child(2)",
+                  "selector": "#comment_score > span:nth-child(3)",
                   "outputPropertyName": "serviceScore",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "arg.split(\"：\")[1]"
+                  "valueConverter": "\"服务：-\".equals(arg) ? null : arg.split(\"：\")[1]"
                 },
                 {
                   "name": "获取地址",
                   "type": "finder",
-                  "selector": "#address",
+                  "selector": "span.item[itemprop='street-address']",
                   "outputPropertyName": "street",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "required": true
+                  "valueConverter": "arg.translateEscapes().trim()",
+                  "required": true,
+                  "hint": "可跳转地图（#address或#basic-info > div.expand-info.address > div > span.item）的和不带跳转地图（#basic-info > div.expand-info.address > span.item）的元素定位不一致"
                 },
                 {
                   "name": "获取电话",
@@ -271,7 +273,7 @@
                   "outputPropertyName": "tel",
                   "valueGetter": "text",
                   "outputValueType": "string",
-                  "valueConverter": "arg.split(\"：\")[1]"
+                  "valueConverter": "\"电话： 无 添加\".equals(arg) ? null : arg.split(\"：\")[1].trim()"
                 },
                 {
                   "id": "shop-site-more-info",
@@ -342,6 +344,99 @@
                   "valueGetter": "text",
                   "outputValueType": "number",
                   "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
+                },
+                {
+                  "id": "locate-comments",
+                  "name": "定位评价内容",
+                  "type": "locator",
+                  "selector": "#reviewlist-wrapper > li",
+                  "multi": true
+                },
+                {
+                  "name": "获取评价：PC端无法分页获取到所有评价，需使用app才行",
+                  "type": "box",
+                  "target": "locate-comments",
+                  "hook": {
+                    "doBefore": "return false;"
+                  },
+                  "outputPropertyName": "comments",
+                  "outputValueType": "list",
+                  "wrap": true,
+                  "steps": [
+                    {
+                      "name": "获取评论id",
+                      "type": "finder",
+                      "xpath": ".",
+                      "outputPropertyName": "id",
+                      "outputValueType": "number",
+                      "valueGetter": "attribute",
+                      "attributeKey": "data-id",
+                      "required": true
+                    },
+                    {
+                      "name": "获取用户id",
+                      "type": "finder",
+                      "selector": "a",
+                      "outputPropertyName": "userId",
+                      "valueGetter": "attribute",
+                      "attributeKey": "data-user-id",
+                      "outputValueType": "number",
+                      "hint": "可通过链接https://www.dianping.com/member/{userId}访问用户信息，注意存在匿名用户"
+                    },
+                    {
+                      "name": "获取用户头像",
+                      "type": "finder",
+                      "selector": "a > img:nth-child(1)",
+                      "outputPropertyName": "avatar",
+                      "outputValueType": "string",
+                      "valueGetter": "attribute",
+                      "attributeKey": "src"
+                    },
+                    {
+                      "name": "获取用户昵称",
+                      "type": "finder",
+                      "selector": "p > a",
+                      "outputPropertyName": "nickname",
+                      "outputValueType": "string",
+                      "valueGetter": "text"
+                    },
+                    {
+                      "name": "获取评分",
+                      "type": "finder",
+                      "selector": "div > p.shop-info > span.sml-rank-stars",
+                      "outputPropertyName": "score",
+                      "outputValueType": "number",
+                      "valueGetter": "attribute",
+                      "attributeKey": "class",
+                      "valueConverter": "new java.math.BigDecimal(arg.split(\" \")[1].substring(7)).divide(java.math.BigDecimal.TEN, 1, java.math.RoundingMode.HALF_UP).toString()",
+                      "hint": "某些频道会有详细分数(div > p.shop-info > span.item)，如'环境：5.0'、'效果：5.0'、'服务：5.0'"
+                    },
+                    {
+                      "name": "获取评价内容",
+                      "type": "finder",
+                      "selector": "div > p.desc",
+                      "outputPropertyName": "content",
+                      "outputValueType": "string",
+                      "valueGetter": "text"
+                    },
+                    {
+                      "name": "获取评价时间",
+                      "type": "finder",
+                      "selector": "div.content > div.misc-info > span.time",
+                      "outputPropertyName": "time",
+                      "outputValueType": "string",
+                      "valueGetter": "text",
+                      "hint": "yyyy-MM-dd HH:mm"
+                    },
+                    {
+                      "name": "获取评价方式: 团购点评、签到评价等",
+                      "type": "finder",
+                      "selector": "div.content > div.misc-info > span.item",
+                      "outputPropertyName": "source",
+                      "outputValueType": "string",
+                      "valueGetter": "text"
+                    }
+                  ]
                 }
               ]
             },

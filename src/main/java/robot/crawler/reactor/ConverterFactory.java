@@ -2,6 +2,7 @@ package robot.crawler.reactor;
 
 import org.codehaus.janino.ExpressionEvaluator;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,6 +26,15 @@ public class ConverterFactory {
                 case "int":
                 case "java.lang.Integer":
                     converter = Integer::parseInt;
+                    break;
+                case "number":
+                    converter = (str) -> {
+                        if (str.indexOf(".") > 0) {
+                            return new BigDecimal(str);
+                        } else {
+                            return Long.parseLong(str);
+                        }
+                    };
                     break;
                 default: converter = new ExpressionConverter(type);
             }
