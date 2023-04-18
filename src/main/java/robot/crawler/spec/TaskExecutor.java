@@ -3,7 +3,6 @@ package robot.crawler.spec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -14,13 +13,13 @@ public interface TaskExecutor {
     void setUp(TaskSettingDefinition settings);
 
     default Result execute(TaskDefinition task) {
-        LocalDateTime enterAt = LocalDateTime.now();
+        long enterAt = System.currentTimeMillis();
         try {
             setUp(task.settings());
             List<Map<String, Object>> data = doExecute(task.url(), task.steps());
-            return new Result(task.id(), enterAt, LocalDateTime.now(), data, false);
+            return new Result(task.id(), enterAt, System.currentTimeMillis(), data, false);
         } catch (Exception e) {
-            return new Result(task.id(), enterAt, LocalDateTime.now(), doHandleException(e), true);
+            return new Result(task.id(), enterAt, System.currentTimeMillis(), doHandleException(e), true);
         } finally {
             tearDown();
         }

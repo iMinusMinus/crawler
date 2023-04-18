@@ -2,6 +2,7 @@ package robot.crawler;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -94,6 +95,7 @@ public class Application {
     private static void configureObjectMapper() {
         om = new ObjectMapper();
         om.findAndRegisterModules();
+        om.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         // Unexpected token (START_OBJECT), expected VALUE_STRING: need JSON String that contains type id (for subtype of java.util.List)
