@@ -1,0 +1,136 @@
+{
+  "id": "dianping-${cityName}",
+  "url": "https://www.dianping.com/wuhan",
+  "hint": "城市生活指南地图查看所有分类、地点: https://www.dianping.com/shopall/{cityId}/0",
+  "settings": {
+    "driverName": "chrome",
+    "arguments": []
+  },
+  "steps": [
+    {
+      "id": "quarter-clickable",
+      "name": "定位热门商圈",
+      "type": "locator",
+      "selector": "#cata-hot > div.cata-hot-detail.cata-hot-area > div > a"
+    },
+    {
+      "id": "quarter-of-city",
+      "name": "点击热门商圈",
+      "type": "action",
+      "actionName": "click",
+      "target": "quarter-clickable"
+    },
+    {
+      "name": "等待页面加载完成",
+      "type": "action",
+      "actionName": "wait",
+      "minWaitTime": 2000,
+      "maxWaitTime": 10000,
+      "expectedCondition": "numberOfWindows",
+      "testValue": "2"
+    },
+    {
+      "name": "切换页面",
+      "type": "action",
+      "actionName": "switch",
+      "target": "quarter-of-city"
+    },
+    {
+      "id": "lbs-map-guide",
+      "name": "定位需要的内容",
+      "type": "locator",
+      "selector": "#J-shopall > div > div ~ div",
+      "multi": true,
+      "hint": "分类各城市没有差异，不重复获取"
+    },
+    {
+      "name": "获取生活指南地图",
+      "type": "box",
+      "target": "lbs-map-guide",
+      "outputPropertyName": "$",
+      "outputValueType": "list",
+      "wrap": true,
+      "steps": [
+        {
+          "name": "类型: 商区/地标/地铁沿线/大学周边",
+          "type": "finder",
+          "selector": "h2",
+          "outputPropertyName": "topicName",
+          "valueGetter": "text",
+          "outputValueType": "string"
+        },
+        {
+          "id": "locate-district",
+          "name": "定位区县",
+          "type": "locator",
+          "selector": "dl.list",
+          "multi": true
+        },
+        {
+          "name": "区县地点",
+          "type": "box",
+          "target": "locate-district",
+          "outputPropertyName": "district",
+          "outputValueType": "list",
+          "wrap": true,
+          "steps": [
+            {
+              "name": "获取区县名称",
+              "type": "finder",
+              "selector": "dt > a",
+              "outputPropertyName": "districtName",
+              "outputValueType": "string",
+              "valueGetter": "text",
+              "required": true
+            },
+            {
+              "name": "获取区县代码",
+              "type": "finder",
+              "selector": "dt > a",
+              "outputPropertyName": "districtName",
+              "outputValueType": "string",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
+              "required": true
+            },
+            {
+              "id": "locate-cbd",
+              "name": "定位商业点",
+              "type": "locator",
+              "selector": "dd > ul > li",
+              "multi": true
+            },
+            {
+              "name": "获取商业点",
+              "target": "locate-cbd",
+              "type": "box",
+              "outputPropertyName": "quarters",
+              "outputValueType": "list",
+              "wrap": true,
+              "steps": [
+                {
+                  "name": "获取商业点名称",
+                  "type": "finder",
+                  "selector": "a",
+                  "outputPropertyName": "quarterName",
+                  "outputValueType": "string",
+                  "valueGetter": "text"
+                },
+                {
+                  "name": "获取商业点代码: https://www.dianping.com/{cityName}/ch0/{quarterCode}",
+                  "type": "finder",
+                  "selector": "a",
+                  "outputPropertyName": "quarterCode",
+                  "valueGetter": "attribute",
+                  "attributeKey": "href",
+                  "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
