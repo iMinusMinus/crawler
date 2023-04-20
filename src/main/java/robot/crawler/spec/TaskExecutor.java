@@ -18,7 +18,7 @@ public interface TaskExecutor {
             setUp(task.settings());
             List<Map<String, Object>> data = doExecute(task.url(), task.steps());
             return new Result(task.id(), enterAt, System.currentTimeMillis(), data, false);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return new Result(task.id(), enterAt, System.currentTimeMillis(), doHandleException(e), true);
         } finally {
             tearDown();
@@ -27,9 +27,9 @@ public interface TaskExecutor {
 
     List<Map<String, Object>> doExecute(String url, List<? extends Step> steps);
 
-    default List<Map<String, Object>> doHandleException(Exception e) {
+    default List<Map<String, Object>> doHandleException(RuntimeException e) {
         log.error(e.getMessage(), e);
-        throw new RuntimeException(e);
+        throw e;
     }
 
     void tearDown();

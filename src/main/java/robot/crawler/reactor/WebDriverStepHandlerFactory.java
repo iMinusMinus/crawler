@@ -131,11 +131,15 @@ public class WebDriverStepHandlerFactory {
                 case CLICK -> {
                     Set<String> beforeClick = webDriver.getWindowHandles();
                     WebElement clickable = context.getElement(step.target());
-                    new Actions(webDriver).click(clickable).perform();
-                    Set<String> afterClick = webDriver.getWindowHandles();
-                    afterClick.removeAll(beforeClick);
-                    if (!afterClick.isEmpty()) {
-                        windows.put(step.id(), afterClick.iterator().next());
+                    if (clickable != null) {
+                        new Actions(webDriver).click(clickable).perform();
+                        Set<String> afterClick = webDriver.getWindowHandles();
+                        afterClick.removeAll(beforeClick);
+                        if (!afterClick.isEmpty()) {
+                            windows.put(step.id(), afterClick.iterator().next());
+                        }
+                    } else if(!step.ignoreNotApply()) {
+                        throw new IllegalArgumentException("click target must exist");
                     }
                 }
                 case SCREENSHOT -> {
@@ -215,7 +219,7 @@ public class WebDriverStepHandlerFactory {
             }
             WebElement scope = context.currentElement(webDriver.getWindowHandle());
             WebElement target;
-            if (scope == null && locator != null) {
+            if ((scope == null || step.escapeScope()) && locator != null) {
                 target = webDriver.findElements(locator).stream().findFirst().orElse(null);
             } else if (scope != null && locator != null) {
                 target = scope.findElements(locator).stream().findFirst().orElse(null);
@@ -340,7 +344,7 @@ public class WebDriverStepHandlerFactory {
         }
 
         @Override
-        public void onThrow(WebDriverContext context, Box step, Exception e) {
+        public void onThrow(WebDriverContext context, Box step, RuntimeException e) {
             if (step.hook() != null && step.hook().doThrowing() != null) {
                  WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doThrowing());
                  return;
@@ -348,7 +352,7 @@ public class WebDriverStepHandlerFactory {
             if ((!Box.ROOT_OBJECT_ID.equals(step.outputPropertyName()) && step.outputValueType() != null) || step.wrap()) {
                 context.popResult();
             }
-            throw new RuntimeException(e);
+            throw e;
         }
 
     }

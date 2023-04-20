@@ -1,0 +1,330 @@
+{
+  "id": "dianping-${cityPinyinSpelling}-{subIndustry}-{quarter}-urls",
+  "url": "https://www.dianping.com/{cityPinyinSpelling}",
+  "hint": "可能不分页，可能商区下没有地点，可能分类下没有子分类，可能分类较多，需要展开",
+  "settings": {
+    "driverName": "chrome",
+    "debug": true,
+    "arguments": [],
+    "hint": "如果使用msedge启动失败，可以设置启动参数'webdriver.http.factory=jdk-http-client'来尝试解决"
+  },
+  "steps": [
+    {
+      "name": "注入cookie",
+      "type": "action",
+      "actionName": "+cookies",
+      "cookies": "${cookie}"
+    },
+    {
+      "name": "跳转分类商区页面: https://www.dianping.com/{cityName}/{subIndustry}/{quarter}",
+      "type": "action",
+      "actionName": "navigate",
+      "target": "${url.quarterWithCategory}"
+    },
+    {
+      "id": "locate-area",
+      "name": "定位商业点",
+      "type": "locator",
+      "selector": "#bussi-nav-sub > a ~ a",
+      "multi": true
+    },
+    {
+      "name": "获取待处理链接",
+      "type": "box",
+      "target": "locate-area",
+      "hook": {
+        "doBefore": "import java.util.List; import java.util.ArrayList; import java.util.Map; import java.util.HashMap; import org.openqa.selenium.WebElement; import org.openqa.selenium.By;List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); int pageSize = 1; if (!elements.isEmpty()) {pageSize = Integer.parseInt(((WebElement) elements.get(0)).getText()); if(pageSize >= 50){return true;}} List<Map<String, Object>> root = new ArrayList<>(); Map<String, Object> current = new HashMap<>();current.put(\"pageSize\",pageSize);current.put(\"url\",webDriver.getCurrentUrl()); root.add(current);context.initialResult(root);return false;",
+        "hint": "不限频道的指定地点分页数小于50时无需细分地点，无细分地点时直接看分类"
+      },
+      "noPushToContext": true,
+      "outputPropertyName": "$",
+      "outputValueType": "list",
+      "steps": [
+        {
+          "id": "area-special",
+          "name": "定位地点",
+          "type": "locator",
+          "selector": "#bussi-nav-sub > a.cur + a",
+          "hint": "点击后元素会变化，固定元素循环会导致: org.openqa.selenium.StaleElementReferenceException: stale element reference: element is not attached to the page document"
+        },
+        {
+          "name": "点击地点",
+          "type": "action",
+          "actionName": "click",
+          "target": "area-special",
+          "ignoreNotApply": true,
+          "hint": "某些商区没有再细分出地点"
+        },
+        {
+          "name": "等待加载",
+          "type": "action",
+          "actionName": "wait",
+          "minWaitTime": 5000,
+          "maxWaitTime": 10000,
+          "expectedCondition": "elementPresence",
+          "testValue": "#classfy > a"
+        },
+        {
+          "id": "locate-first-category",
+          "name": "定位第一个分类",
+          "type": "locator",
+          "selector": "#classfy > a:nth-child(1)",
+          "multi": true
+        },
+        {
+          "name": "获取地点待处理链接1",
+          "type": "box",
+          "target": "locate-first-category",
+          "hook": {
+            "doBefore": "import java.util.List; import java.util.ArrayList; import java.util.Map; import java.util.HashMap; import org.openqa.selenium.WebElement; import org.openqa.selenium.By;List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); int pageSize = 1; if (!elements.isEmpty()) {pageSize = Integer.parseInt(((WebElement) elements.get(0)).getText()); if(pageSize >= 50){return true;}} Map<String, Object> current = new HashMap<>();current.put(\"pageSize\",pageSize);current.put(\"url\",webDriver.getCurrentUrl()); context.fillResult(null, current);return false;"
+          },
+          "noPushToContext": true,
+          "steps": [
+            {
+              "id": "locate-category-item1",
+              "name": "定位分类",
+              "type": "locator",
+              "selector": "#classfy > a:nth-child(1)",
+              "hint": "不限和分类明细在一个div下，但元素级别不同，通过'#classfy > a.cur + a'无法取得第一个分类明细，通过'body > div.section.Fix.J-shop-search > div.navigation > div.nav-category.J_filter_category a.cur + a'无法得到第一个分类明细"
+            },
+            {
+              "id": "click-category-item1",
+              "name": "点击分类",
+              "type": "action",
+              "actionName": "click",
+              "target": "locate-category-item1"
+            },
+            {
+              "name": "等待分类加载",
+              "type": "action",
+              "actionName": "wait",
+              "minWaitTime": 1000,
+              "maxWaitTime": 3000,
+              "expectedCondition": "elementPresence",
+              "testValue": "#classfy-sub > a",
+              "ignoreNotApply": true
+            },
+            {
+              "name": "等待分页加载完成",
+              "type": "action",
+              "actionName": "wait",
+              "minWaitTime": 5000,
+              "maxWaitTime": 10000,
+              "expectedCondition": "elementPresence",
+              "testValue": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+              "ignoreNotApply": true
+            },
+            {
+              "id": "locate-sub-category-of-first-category",
+              "name": "获取第一个分类的子分类",
+              "type": "locator",
+              "selector": "#classfy-sub > a ~ a",
+              "multi": true
+            },
+            {
+              "name": "获取第一个分类的子分类待处理链接",
+              "type": "box",
+              "target": "locate-sub-category-of-first-category",
+              "hook": {
+                "doBefore": "import java.util.List; import java.util.ArrayList; import java.util.Map; import java.util.HashMap; import org.openqa.selenium.WebElement; import org.openqa.selenium.By;List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); int pageSize = 1; if (!elements.isEmpty()) {pageSize = Integer.parseInt(((WebElement) elements.get(0)).getText()); if(pageSize >= 50){return true;}} Map<String, Object> current = new HashMap<>();current.put(\"pageSize\",pageSize);current.put(\"url\",webDriver.getCurrentUrl()); context.fillResult(null, current);return false;"
+              },
+              "outputValueType": "object",
+              "noPushToContext": true,
+              "steps": [
+                {
+                  "name": "等待页数加载",
+                  "type": "action",
+                  "actionName": "wait",
+                  "minWaitTime": 5000,
+                  "maxWaitTime": 10000,
+                  "expectedCondition": "elementPresence",
+                  "testValue": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+                  "ignoreNotApply": true
+                },
+                {
+                  "name": "获取链接: https://www.dianping.com/{cityName}/{subIndustry}/{category}{quarter}d500",
+                  "type": "finder",
+                  "selector": "#classfy-sub > a.cur + a",
+                  "outputPropertyName": "url",
+                  "outputValueType": "string",
+                  "valueGetter": "attribute",
+                  "attributeKey": "href",
+                  "valueConverter": ""
+                },
+                {
+                  "name": "获取分页数",
+                  "type": "finder",
+                  "selector": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+                  "outputPropertyName": "pageSize",
+                  "outputValueType": "int",
+                  "valueGetter": "text",
+                  "valueConverter": "int",
+                  "escapeScope": true
+                },
+                {
+                  "id": "locate-next-sub-category",
+                  "name": "定位下一个子分类",
+                  "type": "locator",
+                  "selector": "#classfy-sub > a.cur + a"
+                },
+                {
+                  "name": "点击下一个子分类",
+                  "type": "action",
+                  "actionName": "click",
+                  "target": "locate-next-sub-category"
+                }
+              ]
+            }
+          ]
+        },
+
+
+
+        {
+          "id": "locate-more-category",
+          "name": "定位更多分类",
+          "type": "locator",
+          "selector": "#classfy > a.more.J_packdown"
+        },
+        {
+          "id": "click-more-category",
+          "name": "点击分类更多",
+          "type": "action",
+          "actionName": "click",
+          "target": "locate-more-category",
+          "ignoreNotApply": true
+        },
+        {
+          "id": "locate-category",
+          "name": "定位所有分类(不含第一个分类和更多)",
+          "type": "locator",
+          "selector": "#classfy > a:not(.cur):not(.more)",
+          "multi": true
+        },
+        {
+          "name": "获取地点待处理链接N",
+          "type": "box",
+          "target": "locate-category",
+          "noPushToContext": true,
+          "steps": [
+            {
+              "id": "locate-category-more-at-most-once",
+              "name": "定位所有分类用于选择性打开更多",
+              "type": "locator",
+              "selector": "#classfy > a.more",
+              "multi": true
+            },
+            {
+              "name": "当点击到最后一个非隐藏分类时展开更多",
+              "type": "box",
+              "target": "locate-category-more-at-most-once",
+              "noPushToContext": true,
+              "hook": {
+                "doBefore": "import org.openqa.selenium.By; return webDriver.findElement(By.cssSelector(\"#classfy > a.cur + a\")).getAttribute(\"class\").contains(\"Hide\");"
+              },
+              "steps": [
+                {
+                  "id": "locate-more-category-if-must",
+                  "name": "定位更多分类(已经到了非隐藏的最后一个分类)",
+                  "type": "locator",
+                  "selector": "#classfy > a.more.J_packdown"
+                },
+                {
+                  "id": "click-more-category-if-must",
+                  "name": "点击分类更多（显示隐藏分类）",
+                  "type": "action",
+                  "actionName": "click",
+                  "target": "locate-more-category-if-must"
+                }
+              ]
+            },
+            {
+              "id": "locate-category-item",
+              "name": "定位分类",
+              "type": "locator",
+              "selector": "#classfy > a.cur + a"
+            },
+            {
+              "id": "click-category-item",
+              "name": "点击分类",
+              "type": "action",
+              "actionName": "click",
+              "target": "locate-category-item"
+            },
+            {
+              "name": "等待分类加载",
+              "type": "action",
+              "actionName": "wait",
+              "minWaitTime": 5000,
+              "maxWaitTime": 10000,
+              "expectedCondition": "elementPresence",
+              "testValue": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+              "ignoreNotApply": true
+            },
+            {
+              "id": "locate-sub-category",
+              "name": "获取子分类",
+              "type": "locator",
+              "selector": "#classfy-sub > a ~ a",
+              "multi": true
+            },
+            {
+              "name": "获取分类待处理链接",
+              "type": "box",
+              "target": "locate-sub-category",
+              "hook": {
+                "doBefore": "import java.util.List; import java.util.ArrayList; import java.util.Map; import java.util.HashMap; import org.openqa.selenium.WebElement; import org.openqa.selenium.By;List<WebElement> elements = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)\")); int pageSize = 1; if (!elements.isEmpty()) {pageSize = Integer.parseInt(((WebElement) elements.get(0)).getText()); if(pageSize >= 50){return true;}} Map<String, Object> current = new HashMap<>();current.put(\"pageSize\",pageSize);current.put(\"url\",webDriver.getCurrentUrl()); context.fillResult(null, current);return false;"
+              },
+              "outputValueType": "object",
+              "noPushToContext": true,
+              "steps": [
+                {
+                  "name": "等待页数加载",
+                  "type": "action",
+                  "actionName": "wait",
+                  "minWaitTime": 5000,
+                  "maxWaitTime": 10000,
+                  "expectedCondition": "elementPresence",
+                  "testValue": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+                  "ignoreNotApply": true
+                },
+                {
+                  "name": "获取链接: https://www.dianping.com/{cityName}/{subIndustry}/{category}{quarter}d500",
+                  "type": "finder",
+                  "selector": "#classfy-sub > a.cur + a",
+                  "outputPropertyName": "url",
+                  "outputValueType": "string",
+                  "valueGetter": "attribute",
+                  "attributeKey": "href",
+                  "valueConverter": ""
+                },
+                {
+                  "name": "获取分页数",
+                  "type": "finder",
+                  "selector": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a:nth-last-child(2)",
+                  "outputPropertyName": "pageSize",
+                  "outputValueType": "int",
+                  "valueGetter": "text",
+                  "valueConverter": "int",
+                  "escapeScope": true
+                },
+                {
+                  "id": "locate-next-sub-category",
+                  "name": "定位下一个子分类",
+                  "type": "locator",
+                  "selector": "#classfy-sub > a.cur + a"
+                },
+                {
+                  "name": "点击下一个子分类",
+                  "type": "action",
+                  "actionName": "click",
+                  "target": "locate-next-sub-category"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

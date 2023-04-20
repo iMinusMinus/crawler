@@ -15,7 +15,7 @@ public interface StepHandler<CTX extends Context<E>, STEP extends Step, E> {
             }
             handle(context, step);
             afterHandle(context, step);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             onThrow(context, step, e);
         }
     }
@@ -41,8 +41,8 @@ public interface StepHandler<CTX extends Context<E>, STEP extends Step, E> {
         return true;
     }
 
-    default void onThrow(CTX context, STEP step, Exception e) {
+    default void onThrow(CTX context, STEP step, RuntimeException e) {
         log.error("handle step[name={}] error", step.name());
-        throw new RuntimeException(e);
+        throw e;
     }
 }

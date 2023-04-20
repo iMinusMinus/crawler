@@ -86,7 +86,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
     }
 
     @Override
-    public List<Map<String, Object>> doHandleException(Exception e) {
+    public List<Map<String, Object>> doHandleException(RuntimeException e) {
         log.error(e.getMessage(), e);
         return context.getResult();
     }

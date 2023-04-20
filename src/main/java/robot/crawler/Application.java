@@ -170,7 +170,7 @@ public class Application {
 
     private static void feedback(String to, Progress progress) throws Exception {
         if ("console".equals(to)) {
-            log.info("task execute success!");
+            log.info("task progress: {}", progress);
         } else {
             URLConnection connection = new URL(to).openConnection();
             connection.setReadTimeout(30);
