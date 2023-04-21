@@ -8,16 +8,15 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
-// TODO
 public record JsoupContext() implements Context<Element> {
 
-    private static Stack<String> urls = new Stack<>();
+    private static final Stack<String> urls = new Stack<>();
 
-    private static Map<String, List<String>> urlIds = new ConcurrentHashMap<>();
+    private static final Map<String, List<String>> urlIds = new ConcurrentHashMap<>();
 
-    private static Map<String, List<Element>> elementsMap = new ConcurrentHashMap<>();
+    private static final Map<String, List<Element>> elementsMap = new ConcurrentHashMap<>();
 
-    private static Map<String, Element> elements = new ConcurrentHashMap<>();
+    private static final Map<String, Element> elements = new ConcurrentHashMap<>();
 
     private static final Stack<Object> result = new Stack<>();
 

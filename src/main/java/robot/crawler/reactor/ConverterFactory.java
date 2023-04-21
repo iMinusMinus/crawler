@@ -16,28 +16,18 @@ public class ConverterFactory {
 
     public static ValueConverter getConverter(String valueType) {
         return converters.computeIfAbsent(valueType, (type) -> {
-            ValueConverter converter;
-            switch (type) {
-                case "str":
-                case "string":
-                case "java.lang.String":
-                    converter = (str) -> str;
-                    break;
-                case "int":
-                case "java.lang.Integer":
-                    converter = Integer::parseInt;
-                    break;
-                case "number":
-                    converter = (str) -> {
-                        if (str.indexOf(".") > 0) {
-                            return new BigDecimal(str);
-                        } else {
-                            return Long.parseLong(str);
-                        }
-                    };
-                    break;
-                default: converter = new ExpressionConverter(type);
-            }
+            ValueConverter converter = switch (type) {
+                case "str", "string", "java.lang.String" -> (str) -> str;
+                case "int", "java.lang.Integer" -> Integer::parseInt;
+                case "number" -> (str) -> {
+                    if (str.indexOf(".") > 0) {
+                        return new BigDecimal(str);
+                    } else {
+                        return Long.parseLong(str);
+                    }
+                };
+                default -> new ExpressionConverter(type);
+            };
             return converter;
         });
     }

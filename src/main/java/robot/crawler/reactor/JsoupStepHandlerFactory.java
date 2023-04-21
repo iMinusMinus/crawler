@@ -34,165 +34,132 @@ public abstract class JsoupStepHandlerFactory {
         });
     }
 
-    private static class BoxHandler implements StepHandler<JsoupContext, Box, Element> {
-
-        private final Connection connection;
-
-        private final Document doc;
-
-        public BoxHandler(Connection connection, Document doc) {
-            this.connection = connection;
-            this.doc = doc;
-        }
+    private record BoxHandler(Connection connection, Document doc) implements StepHandler<JsoupContext, Box, Element> {
 
         @Override
-        public void handle(JsoupContext context, Box step) {
-            List<Element> elements = context.getElements(step.target());
-            Element element = context.getElement(step.target());
-            if (elements == null) {
-                elements = List.of(element);
-            }
-            boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
-            if (isRootObject) {
-                List<Map<String, Object>> root = new ArrayList<>();
-                context.initialResult(root);
-            } else if (step.outputValueType() != null) {
-                Object value = ObjectFactory.getObject(step.outputValueType());
-                context.fillResult(step.outputPropertyName(), value);
-                context.pushResult(value);
-            }
-            for (Element ele : elements) {
-                if (step.wrap()) {
-                    Map<String, Object> map = new HashMap<>();
-                    context.pushResult(map);
+            public void handle(JsoupContext context, Box step) {
+                List<Element> elements = context.getElements(step.target());
+                Element element = context.getElement(step.target());
+                if (elements == null) {
+                    elements = List.of(element);
                 }
-                if (!step.noPushToContext()) {
-                    context.snapshotElement(context.currentWindow(), ele);
+                boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
+                if (isRootObject) {
+                    List<Map<String, Object>> root = new ArrayList<>();
+                    context.initialResult(root);
+                } else if (step.outputValueType() != null) {
+                    Object value = ObjectFactory.getObject(step.outputValueType());
+                    context.fillResult(step.outputPropertyName(), value);
+                    context.pushResult(value);
                 }
-                for (Step s : step.steps()) {
-                    Step.Type type = Step.Type.getInstance(s.type());
-                    assert type != null;
-                    JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, s);
+                for (Element ele : elements) {
+                    if (step.wrap()) {
+                        Map<String, Object> map = new HashMap<>();
+                        context.pushResult(map);
+                    }
+                    if (!step.noPushToContext()) {
+                        context.snapshotElement(context.currentWindow(), ele);
+                    }
+                    for (Step s : step.steps()) {
+                        Step.Type type = Step.Type.getInstance(s.type());
+                        assert type != null;
+                        JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, s);
+                    }
+                    if (!step.noPushToContext()) {
+                        context.restoreElement(context.currentWindow());
+                    }
+                    if (step.wrap()) {
+                        context.popResult();
+                    }
                 }
-                if (!step.noPushToContext()) {
-                    context.restoreElement(context.currentWindow());
-                }
-                if (step.wrap()) {
+                if (!isRootObject && step.outputValueType() != null) {
                     context.popResult();
                 }
             }
-            if (!isRootObject && step.outputValueType() != null) {
-                context.popResult();
-            }
         }
-    }
 
-    private static class LocatorHandler implements StepHandler<JsoupContext, Locator, Element> {
-
-        private final Connection connection;
-
-        private final Document doc;
-
-        public LocatorHandler(Connection connection, Document doc) {
-            this.connection = connection;
-            this.doc = doc;
-        }
+    private record LocatorHandler(Connection connection,
+                                  Document doc) implements StepHandler<JsoupContext, Locator, Element> {
 
         @Override
-        public void handle(JsoupContext context, Locator step) {
-            Element scope = context.currentElement(context.currentWindow());
-            if (step.escapeScope()) {
-                scope = doc;
-            }
-            Elements located = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
-            if (step.multi()) {
-                context.addElements(step.id(), located.stream().toList());
-            } else {
-                context.addElement(step.id(), located.get(0));
+            public void handle(JsoupContext context, Locator step) {
+                Element scope = context.currentElement(context.currentWindow());
+                if (step.escapeScope()) {
+                    scope = doc;
+                }
+                Elements located = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
+                if (step.multi()) {
+                    context.addElements(step.id(), located.stream().toList());
+                } else {
+                    context.addElement(step.id(), located.get(0));
+                }
             }
         }
-    }
 
-    private static class ActionHandler implements StepHandler<JsoupContext, Action, Element> {
-
-        private final Connection connection;
-
-        private final Document doc;
-
-        public ActionHandler(Connection connection, Document doc) {
-            this.connection = connection;
-            this.doc = doc;
-        }
+    private record ActionHandler(Connection connection,
+                                 Document doc) implements StepHandler<JsoupContext, Action, Element> {
 
         @Override
-        public void handle(JsoupContext context, Action step) {
-            Action.Type type = Action.Type.getInstance(step.actionName());
-            assert type != null;
-            switch (type) {
-                case ADD_COOKIES -> {
-                    String[] cookies = step.cookies().split("; ");
-                    for (String cookie : cookies) {
-                        connection.cookie(cookie.split("=")[0], cookie.split("=")[1]);
+            public void handle(JsoupContext context, Action step) {
+                Action.Type type = Action.Type.getInstance(step.actionName());
+                assert type != null;
+                switch (type) {
+                    case ADD_COOKIES -> {
+                        String[] cookies = step.cookies().split("; ");
+                        for (String cookie : cookies) {
+                            connection.cookie(cookie.split("=")[0], cookie.split("=")[1]);
+                        }
                     }
-                }
-                case NAVIGATE -> {
-                    try {
-                        Element newContent = connection.url(step.target()).get();
-                        context.activeWindow(step.target());
-                        context.snapshotElement(context.currentWindow(), newContent);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                case CLICK -> {
-                    Element clickable = context.getElement(step.target());
-                    String href = clickable.attr("href");
-                    if (href != null) {
+                    case NAVIGATE -> {
                         try {
-                            Element newContent = connection.url(href).get();
-                            context.activeWindow(href);
+                            Element newContent = connection.url(step.target()).get();
+                            context.activeWindow(step.target());
                             context.snapshotElement(context.currentWindow(), newContent);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
                     }
+                    case CLICK -> {
+                        Element clickable = context.getElement(step.target());
+                        String href = clickable.attr("href");
+                        if (href != null) {
+                            try {
+                                Element newContent = connection.url(href).get();
+                                context.activeWindow(href);
+                                context.snapshotElement(context.currentWindow(), newContent);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }
+                    case SCREENSHOT, SCROLL, SWITCH, WAIT -> {
+                        // NO-OP
+                    }
+                    case CLOSE -> {
+                        context.destroyWindow();
+                    }
+                    default -> throw new RuntimeException("unimplemented!");
                 }
-                case SCREENSHOT, SCROLL, SWITCH, WAIT -> {
-                    // NO-OP
-                }
-                case CLOSE -> {
-                    context.destroyWindow();
-                }
-                default -> throw new RuntimeException("unimplemented!");
             }
         }
-    }
 
-    private static class FinderHandler implements StepHandler<JsoupContext, Finder, Element> {
-
-        private final Connection connection;
-
-        private final Document doc;
-
-        public FinderHandler(Connection connection, Document doc) {
-            this.connection = connection;
-            this.doc = doc;
-        }
+    private record FinderHandler(Connection connection,
+                                 Document doc) implements StepHandler<JsoupContext, Finder, Element> {
 
         @Override
-        public void handle(JsoupContext context, Finder step) {
-            Element scope = context.currentElement(context.currentWindow());
-            if (step.escapeScope()) {
-                scope = doc;
+            public void handle(JsoupContext context, Finder step) {
+                Element scope = context.currentElement(context.currentWindow());
+                if (step.escapeScope()) {
+                    scope = doc;
+                }
+                Elements elements = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
+                if (step.required() && elements.size() < 1) {
+                    throw new RuntimeException("required property cannot find on element");
+                }
+                Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
+                assert type != null;
+                String value = type == Finder.ValueGetterType.TEXT ? elements.get(0).text() : elements.get(0).attr(step.attributeKey());
+                context.fillResult(step.outputPropertyName(), value);
             }
-            Elements elements = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
-            if (step.required() && elements.size() < 1) {
-                throw new RuntimeException("required property cannot find on element");
-            }
-            Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
-            assert type != null;
-            String value = type ==  Finder.ValueGetterType.TEXT ? elements.get(0).text() : elements.get(0).attr(step.attributeKey());
-            context.fillResult(step.outputPropertyName(), value);
         }
-    }
 }
