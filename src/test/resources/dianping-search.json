@@ -1,17 +1,19 @@
 {
-  "id": "dianping-case-001",
+  "id": "dianping-search-{keyword}",
   "url": "https://www.dianping.com/",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
     "driverName": "chrome",
-    "arguments": []
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+    "arguments": [],
+    "hint": "if not change user-agent, visit dianping homepage get un-authorization"
   },
   "steps": [
     {
       "name": "注入cookie",
       "type": "action",
       "actionName": "+cookies",
-      "cookies": ""
+      "cookies": "${cookie}"
     }, {
       "id": "search-input",
       "name": "找到输入框",
@@ -22,7 +24,7 @@
       "target": "search-input",
       "type": "action",
       "actionName": "input",
-      "inputValue": "小满手工粉 龙华中路"
+      "inputValue": "${keyword}"
     }, {
       "id": "search-button",
       "name": "找到搜索按钮",
@@ -68,6 +70,7 @@
           "selector": "div.txt > div.tit > a",
           "valueGetter": "attribute",
           "attributeKey": "href",
+          "required": true,
           "outputPropertyName": "shopSite",
           "outputValueType": "string",
           "hint": "http://www.dianping.com/ajax/json/shopDynamic/shopAside?shopId={shopId} --> {\"msg\":\"\",\"manaScore\":0,\"code\":200,\"shop\":{\"shopId\":\"l6cuO8nXLn75Dd4N\",\"shopType\":10,\"shopName\":\"阳春面馆\",\"cityId\":1,\"glat\":31.283251,\"glng\":121.537731},\"officialPic\":\"//www.dpfile.com/s/i/blank.34cdf505e1d61164df34b5bc67584823.png\",\"city\":{\"cityID\":1,\"cityEnName\":\"shanghai\",\"gLat\":31.230708,\"gLng\":121.472916,\"overseasCity\":false,\"activeCity\":false,\"trackCity\":false,\"jifenCity\":false,\"promoCity\":false,\"multiCategoryCity\":false},\"asideModel\":{\"shopPOI\":\"IJSHWAZVJCWSCH\",\"usePOIbgFlag\":\"y\",\"mapinfo\":1,\"relatedshop\":1,\"similarShops\":[{\"shopId\":\"k68IYkpYIHcn7vNr\",\"fullName\":\"Miss Poke波奇鲜食饭 大沽路店\",\"defaultPic\":\"http://qcloud.dpfile.com/pc/2cQMHJfH2T__6vgMb3wjdlxQvnLM89U4h_D6Hk5l8w00pUlE80XOPlInPTnkJtEjtOnd3gXQdDYlAqlaVaAFeZ0rYYyiRo_EhzufqWWjTjs.jpg\",\"shopPower\":45,\"voteTotal\":4048,\"shopUuid\":\"k68IYkpYIHcn7vNr\"}],\"inMall\":false,\"showMap\":true,\"glat\":\"31.283251\",\"mapType\":7,\"nearByFoodShops\":[{\"shopId\":\"G8y7rhMzLmwMHGr5\",\"shopName\":\"首尔朴宝·炭火烤肉(隆昌路...\",\"picUrl\":\"http://p0.meituan.net/biztone/4770747_1680173788265.jpeg%40249w_249h_0e_1l%7Cwatermark%3D1%26%26r%3D1%26p%3D9%26x%3D2%26y%3D2%26relative%3D1%26o%3D20\",\"power\":50,\"shopUuid\":\"G8y7rhMzLmwMHGr5\",\"position\":\"&lt;1000米\"}],\"midas\":1,\"nearby\":1,\"dealList\":[],\"glng\":\"121.537731\",\"relatedshop_queryId\":\"0f7d13a4-86fa-4e60-aa8e-b9201e6898d9\",\"trafficCount\":0},\"category\":{\"categoryName\":\"面馆\",\"mainParentCategoryId\":215}}"
@@ -78,6 +81,7 @@
           "selector": "div.txt > div.tit > a",
           "valueGetter": "attribute",
           "attributeKey": "data-shopid",
+          "required": true,
           "outputPropertyName": "shopId",
           "outputValueType": "string"
         },{
@@ -85,6 +89,7 @@
           "type": "finder",
           "selector": "div.txt > div.tit > a > h4",
           "valueGetter": "text",
+          "required": true,
           "outputPropertyName": "shopName",
           "outputValueType": "string"
         }, {
@@ -95,7 +100,7 @@
           "attributeKey": "class",
           "outputPropertyName": "star",
           "outputValueType": "string",
-          "valueConverter": "dianping.shopStarConverter"
+          "valueConverter": "new java.math.BigDecimal(arg.split(\" \")[1].substring(5)).divide(java.math.BigDecimal.TEN, 1, java.math.RoundingMode.HALF_UP).toString()"
         }, {
           "name": "获取店铺评论数",
           "type": "finder",
@@ -115,6 +120,7 @@
           "type": "finder",
           "selector": "div.txt > div.tag-addr > a:nth-child(1) > span",
           "valueGetter": "text",
+          "required": true,
           "outputPropertyName": "categoryName",
           "outputValueType": "string"
         }, {
@@ -123,9 +129,10 @@
           "selector": "div.txt > div.tag-addr > a:nth-child(1)",
           "valueGetter": "attribute",
           "attributeKey": "href",
+          "required": true,
           "outputPropertyName": "category",
           "outputValueType": "string",
-          "valueConverter": "dianping.categoryConverter",
+          "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
           "hint": "category: g[0-9]{3}为类别，g[0-9]{4}为小类别"
         }, {
           "name": "获取店铺行业分类码: https://www.dianping.com/{city}/{subIndustry}/{category}",
@@ -133,15 +140,17 @@
           "selector": "div.txt > div.tag-addr > a:nth-child(1)",
           "valueGetter": "attribute",
           "attributeKey": "href",
+          "required": true,
           "outputPropertyName": "subIndustry",
           "outputValueType": "string",
-          "valueConverter": "dianping.subIndustryConverter",
+          "valueConverter": "arg.split(\"/\")[4]",
           "hint": "subIndustry: ch0为不限频道，ch[0-9]{2}为生活服务, ch[0-9]{5}为公共服务"
         }, {
           "name": "获取店铺所在商圈",
           "type": "finder",
           "selector": "div.txt > div.tag-addr > a:nth-child(3) > span",
           "valueGetter": "text",
+          "required": true,
           "outputPropertyName": "quarterName",
           "outputValueType": "string"
         }, {
@@ -150,9 +159,10 @@
           "selector": "div.txt > div.tag-addr > a:nth-child(3)",
           "valueGetter": "attribute",
           "attributeKey": "href",
+          "required": true,
           "outputPropertyName": "quarter",
           "outputValueType": "string",
-          "valueConverter": "dianping.areaConverter"
+          "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)"
         }, {
           "id": "shop-coupons",
           "name": "查找店铺优惠券元素",
@@ -225,7 +235,7 @@
               "outputPropertyName": "tasteScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "dianping.score"
+              "valueConverter": "\"口味：-\".equals(arg) ? null : arg.split(\"：\")[1]"
             },
             {
               "name": "获取环境评价",
@@ -234,7 +244,7 @@
               "outputPropertyName": "environmentScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "dianping.score"
+              "valueConverter": "\"环境：-\".equals(arg) ? null : arg.split(\"：\")[1]"
             },
             {
               "name": "获取服务评价",
@@ -243,7 +253,7 @@
               "outputPropertyName": "serviceScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "dianping.score"
+              "valueConverter": "\"服务：-\".equals(arg) ? null : arg.split(\"：\")[1]"
             },
             {
               "name": "获取地址",
@@ -260,7 +270,7 @@
               "outputPropertyName": "tel",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "dianping.score"
+              "valueConverter": "\"电话： 无 添加\".equals(arg) ? null : arg.split(\"：\")[1].trim()"
             },
             {
               "id": "shop-site-more-info",
@@ -312,7 +322,7 @@
               "outputPropertyName": "favorReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "dianping.reviewQuantity"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
             },
             {
               "name": "获取中评数",
@@ -321,7 +331,7 @@
               "outputPropertyName": "neutralReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "dianping.reviewQuantity"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
             },
             {
               "name": "获取差评数",
@@ -330,7 +340,7 @@
               "outputPropertyName": "badReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "dianping.reviewQuantity"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
             }
           ]
         },

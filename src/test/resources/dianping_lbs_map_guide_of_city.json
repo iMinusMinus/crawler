@@ -12,7 +12,8 @@
       "id": "quarter-clickable",
       "name": "定位热门商圈",
       "type": "locator",
-      "selector": "#cata-hot > div.cata-hot-detail.cata-hot-area > div > a"
+      "selector": "#cata-hot > div.cata-hot-detail.cata-hot-area > div > a",
+      "hint": "cityId --> <a hef=''></a>: https://www.dianping.com/shopall/{cityId}/0#BDBlock"
     },
     {
       "id": "quarter-of-city",
@@ -88,7 +89,7 @@
               "name": "获取区县代码",
               "type": "finder",
               "selector": "dt > a",
-              "outputPropertyName": "districtName",
+              "outputPropertyName": "districtCode",
               "outputValueType": "string",
               "valueGetter": "attribute",
               "attributeKey": "href",

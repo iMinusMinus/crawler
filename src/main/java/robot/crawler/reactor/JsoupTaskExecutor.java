@@ -21,6 +21,9 @@ public class JsoupTaskExecutor implements TaskExecutor {
     @Override
     public void setUp(TaskSettingDefinition settings) {
         connection = new HttpConnection();
+        if (settings.userAgent() != null) {
+            connection.userAgent(settings.userAgent());
+        }
         if (Proxy.Type.HTTP.name().equalsIgnoreCase(settings.proxyType())) {
             String[] proxy = settings.proxyValue().split(":");
             connection.proxy(proxy[0], Integer.parseInt(proxy[1]));
@@ -44,11 +47,13 @@ public class JsoupTaskExecutor implements TaskExecutor {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        context.snapshotElement(url, doc);
         for (Step step : steps) {
             Step.Type type = Step.Type.getInstance(step.type());
             assert type != null;
             JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, step);
         }
+        context.restoreElement(url);
         return context.getResult();
     }
 
