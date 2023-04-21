@@ -2,6 +2,7 @@ package robot.crawler.reactor;
 
 import org.jsoup.Connection;
 import org.jsoup.helper.HttpConnection;
+import org.jsoup.nodes.Document;
 import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
@@ -35,11 +36,18 @@ public class JsoupTaskExecutor implements TaskExecutor {
 
     @Override
     public List<Map<String, Object>> doExecute(String url, List<? extends Step> steps) {
-//        connection.url(url).get();
+        Document doc = null;
+        try {
+            // some site return status 200, but content was un-authorization
+            doc = connection.url(url).get();
+            context.activeWindow(url);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         for (Step step : steps) {
             Step.Type type = Step.Type.getInstance(step.type());
             assert type != null;
-            JsoupStepHandlerFactory.getHandler(connection, type).execute(context, step);
+            JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, step);
         }
         return context.getResult();
     }

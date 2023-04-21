@@ -1,7 +1,5 @@
 package robot.crawler.reactor;
 
-import org.openqa.selenium.WebElement;
-
 import java.util.List;
 import java.util.Map;
 
@@ -9,11 +7,11 @@ public interface Context<E> {
 
     void addElements(String id, List<E> elements);
 
-    List<WebElement> getElements(String id);
+    List<E> getElements(String id);
 
-    void addElement(String id, WebElement element);
+    void addElement(String id, E element);
 
-    WebElement getElement(String id);
+    E getElement(String id);
 
     void addScreenshot(String id, byte[] data);
 
@@ -25,7 +23,7 @@ public interface Context<E> {
 
     void snapshotElement(String window, E element);
 
-    WebElement currentElement(String window);
+    E currentElement(String window);
 
     void restoreElement(String window);
 
