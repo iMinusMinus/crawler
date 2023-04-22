@@ -7,6 +7,8 @@ module crawler {
 
     requires janino;
 
+    requires java.net.http;
+
     // webdriver
     requires org.seleniumhq.selenium.api;
     requires org.seleniumhq.selenium.remote_driver;

@@ -28,9 +28,12 @@ import robot.crawler.spec.TaskExecutor;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.time.LocalDateTime;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 
 public class Application {
@@ -43,7 +46,13 @@ public class Application {
 
     private static final String HTTPS_PROTOCOL = "https://";
 
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+
+    private static final String APPLICATION_JSON_VALUE = "application/json;charset=UTF-8";
+
     private static ObjectMapper om;
+
+    private static HttpClient httpClient;
 
     public static class Args {
 
@@ -131,6 +140,8 @@ public class Application {
 
         configureObjectMapper();
 
+        httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+
         Register.initialize();
 
         TaskDefinition task = pollTask(taskSource);
@@ -140,16 +151,18 @@ public class Application {
         }
         TaskExecutor taskExecutor = TaskExecutorFactory.getTaskExecutor(commandArgs.getExecutorType());
 
-        feedback(to, new Progress(task.id(), "ACCEPT", null, LocalDateTime.now(), 0));
+        feedback(to, new Progress(task.id(), "ACCEPT", null, System.currentTimeMillis(), 0));
 
         Result crawResult = taskExecutor.execute(task);
 
-        feedback(to, new Progress(task.id(), "CRAW_FINISH", null, LocalDateTime.now(), crawResult.data().size()));
+        feedback(to, new Progress(task.id(), "CRAW_FINISH", null, System.currentTimeMillis(), crawResult.data().size()));
 
         pushResult(destination, crawResult);
 
-        feedback(to, new Progress(task.id(), "UPLOADED", null, LocalDateTime.now(), crawResult.data().size()));
+        feedback(to, new Progress(task.id(), "UPLOADED", null, System.currentTimeMillis(), crawResult.data().size()));
 
+        // wait async http request execute success
+        Thread.currentThread().join(10000);
     }
 
     private static TaskDefinition pollTask(String source) throws Exception {
@@ -158,12 +171,11 @@ public class Application {
                 return om.readValue(fis, TaskDefinition.class);
             }
         } else if (source.startsWith(HTTP_PROTOCOL) || source.startsWith(HTTPS_PROTOCOL)) {
-            URLConnection connection = new URL(source).openConnection();
-            connection.setReadTimeout(30);
-            connection.setConnectTimeout(5);
-            connection.setDoInput(true);
-            connection.connect();
-            return om.readValue(connection.getInputStream(), TaskDefinition.class);
+            HttpRequest request = HttpRequest.newBuilder().uri(new URI(source))
+                    .GET()
+                    .build();
+            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            return om.readValue(response.body(), TaskDefinition.class);
         }
         return null;
     }
@@ -172,12 +184,12 @@ public class Application {
         if ("console".equals(to)) {
             log.info("task progress: {}", progress);
         } else {
-            URLConnection connection = new URL(to).openConnection();
-            connection.setReadTimeout(30);
-            connection.setConnectTimeout(5);
-            connection.setDoOutput(true);
-            connection.getOutputStream().write(om.writeValueAsBytes(progress));
-            connection.connect();
+            HttpRequest request = HttpRequest.newBuilder().uri(new URI(to))
+                    .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(progress)))
+                    .build();
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .thenAccept(x -> log.debug("feedback to [{}] and response status: {}", to, x.statusCode()));
         }
     }
 
@@ -187,12 +199,12 @@ public class Application {
                 fos.write(om.writeValueAsBytes(crawResult));
             }
         } else if (destination.startsWith(HTTP_PROTOCOL) || destination.startsWith(HTTPS_PROTOCOL)) {
-            URLConnection connection = new URL(destination).openConnection();
-            connection.setReadTimeout(30);
-            connection.setConnectTimeout(5);
-            connection.setDoOutput(true);
-            connection.getOutputStream().write(om.writeValueAsBytes(crawResult));
-            connection.connect();
+            HttpRequest request = HttpRequest.newBuilder().uri(new URI(destination))
+                    .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(crawResult)))
+                    .build();
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .thenAccept(x -> log.debug("submit result to [{}] and response status: {}", destination, x.statusCode()));
         }
     }
 
