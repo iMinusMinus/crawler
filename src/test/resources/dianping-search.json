@@ -24,7 +24,8 @@
       "target": "search-input",
       "type": "action",
       "actionName": "input",
-      "inputValue": "${keyword}"
+      "inputValue": "${keyword}",
+      "hint": "https://www.dianping.com/search/keyword/{cityId}/{subIndustry:0}_{keyword}"
     }, {
       "id": "search-button",
       "name": "找到搜索按钮",
