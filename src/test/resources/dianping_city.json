@@ -4,7 +4,7 @@
   "settings": {
     "driverName": "chrome",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
-    "arguments": []
+    "arguments": ["--headless=new", "--no-sandbox"]
   },
   "steps": [
     {
@@ -94,6 +94,41 @@
               "type": "finder",
               "outputPropertyName": "cityName",
               "valueGetter": "text"
+            },
+            {
+              "id": "locate-clickable",
+              "name": "定位当前元素",
+              "type": "locator",
+              "xpath": "."
+            },
+            {
+              "id": "city-dianping",
+              "name": "点击城市专属页面",
+              "type": "action",
+              "actionName": "click",
+              "target": "locate-clickable"
+            },
+            {
+              "id": "switch-to-city",
+              "name": "切换城市专属页面",
+              "type": "action",
+              "actionName": "switch",
+              "target": "city-dianping"
+            },
+            {
+              "name": "获取城市id: https://www.dianping.com/shopall/{cityId}/0",
+              "type": "finder",
+              "selector": "#cata-hot > div > div > a",
+              "outputPropertyName": "cityId",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "valueConverter": "arg.split(\"/\")[4]"
+            },
+            {
+              "name": "关闭城市专属页面",
+              "type": "action",
+              "actionName": "close",
+              "target": "city-dianping"
             }
           ]
         },
