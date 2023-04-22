@@ -4,6 +4,7 @@ import org.jsoup.Connection;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import robot.crawler.anti.AntiDianPingAntiCrawler;
 import robot.crawler.spec.Action;
 import robot.crawler.spec.Box;
 import robot.crawler.spec.Finder;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class JsoupStepHandlerFactory {
@@ -69,7 +71,7 @@ public abstract class JsoupStepHandlerFactory {
                         context.restoreElement(context.currentWindow());
                     }
                     if (step.wrap()) {
-                        context.popResult();
+                        context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
                     }
                 }
                 if (!isRootObject && step.outputValueType() != null) {
@@ -122,10 +124,11 @@ public abstract class JsoupStepHandlerFactory {
                     case CLICK -> {
                         Element clickable = context.getElement(step.target());
                         String href = clickable.attr("href");
-                        if (href != null) {
+                        if (!href.isEmpty()) {
+                            String target = AntiDianPingAntiCrawler.normalizeUrl(context.currentWindow(), href);
                             try {
-                                Element newContent = connection.url(href).get();
-                                context.activeWindow(href);
+                                Element newContent = connection.url(target).get();
+                                context.activeWindow(target);
                                 context.snapshotElement(context.currentWindow(), newContent);
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
@@ -146,20 +149,35 @@ public abstract class JsoupStepHandlerFactory {
     private record FinderHandler(Connection connection,
                                  Document doc) implements StepHandler<JsoupContext, Finder, Element> {
 
+        private static final String RAW_VALUE_PROPERTY_NAME_FMT = "__%1$s__";
+
         @Override
             public void handle(JsoupContext context, Finder step) {
                 Element scope = context.currentElement(context.currentWindow());
                 if (step.escapeScope()) {
                     scope = doc;
                 }
-                Elements elements = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
-                if (step.required() && elements.size() < 1) {
+                Element target;
+                if (step.xpath() != null || step.selector() != null) {
+                    Elements elements = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
+                    target = elements.get(0);
+                } else {
+                    target = scope;
+                }
+                if (step.required() && target == null) {
                     throw new RuntimeException("required property cannot find on element");
                 }
                 Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
                 assert type != null;
-                String value = type == Finder.ValueGetterType.TEXT ? elements.get(0).text() : elements.get(0).attr(step.attributeKey());
+                String raw = type == Finder.ValueGetterType.TEXT ? target.text() : target.attr(step.attributeKey());
+                Object value = raw;
+                if (step.valueConverter() != null && raw != null) {
+                    value = ConverterFactory.getConverter(step.valueConverter()).convert(raw);
+                }
                 context.fillResult(step.outputPropertyName(), value);
+                if (step.outputPropertyName() != null && !Objects.equals(value, raw)) {
+                    context.fillResult(RAW_VALUE_PROPERTY_NAME_FMT.formatted(step.outputPropertyName()), raw);
+                }
             }
         }
 }
