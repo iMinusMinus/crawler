@@ -16,6 +16,7 @@ module crawler {
     requires org.seleniumhq.selenium.chromium_driver;
     requires org.seleniumhq.selenium.edge_driver;
     requires org.seleniumhq.selenium.support;
+    requires org.seleniumhq.selenium.devtools_v110;
 
     //jsoup
     requires org.jsoup;

@@ -3,7 +3,7 @@
   "url": "https://www.dianping.com/",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
-    "driverName": "msedge",
+    "browserName": "chrome",
     "debug": true,
     "arguments": [],
     "hint": "如果使用msedge启动失败，可以设置启动参数'webdriver.http.factory=jdk-http-client'来尝试解决"
@@ -450,7 +450,7 @@
         },
         {
           "id": "locate-next-page-if-possible",
-          "name": "定位可能得下一页",
+          "name": "定位可能的下一页",
           "type": "locator",
           "selector": "body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.page > a.next",
           "multi": true,

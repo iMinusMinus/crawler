@@ -3,7 +3,7 @@
   "url": "https://www.dianping.com/{cityName}",
   "hint": "城市生活指南地图查看所有分类、地点: https://www.dianping.com/shopall/{cityId}/0",
   "settings": {
-    "driverName": "chrome",
+    "browserName": "chrome",
     "arguments": ["--headless=new", "--no-sandbox"],
     "hint": "for chromium, add '--no-sandbox' to avoid chromedriver start session fail"
   },

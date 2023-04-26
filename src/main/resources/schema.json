@@ -11,21 +11,91 @@
     },
     "settings": {
       "type": "object",
-      "required": ["driverName", "arguments"],
+      "required": ["browserName", "arguments"],
       "properties": {
-        "driverName": {
-          "type": "string",
-          "enum": ["chrome", "msedge", "firefox", "opera", "safari", "internet explorer"]
-        },
         "debug": {
           "type": "boolean",
           "hint": "if set true, program exit without quit webdriver"
+        },
+        "location": {
+          "type": "object",
+          "required": ["latitude", "longitude", "accuracy"],
+          "properties": {
+            "cityName": {
+              "type": "string"
+            },
+            "acceptLanguage": {
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "accuracy": {
+              "type": "number"
+            }
+          }
+        },
+        "device": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "pixRatio": {
+              "type": "number"
+            },
+            "userAgent": {
+              "type": "string"
+            },
+            "isMobile": {
+              "type": "boolean"
+            },
+            "touchable": {
+              "type": "boolean"
+            },
+            "brandName": {
+              "type": "string"
+            },
+            "brandVersion": {
+              "type": "string"
+            },
+            "fullBrowserVersion": {
+              "type": "string"
+            },
+            "platformName": {
+              "type": "string",
+              "enum": ["Windows", "GNU/Linux", "MacOS", "Android", "iOS"]
+            },
+            "platformVersion": {
+              "type": "string"
+            },
+            "architecture": {
+              "type": "string",
+              "enum": ["x86", "amd64", "armv7", "armv8"]
+            },
+            "model": {
+              "type": "string"
+            }
+          }
+        },
+        "browserName": {
+          "type": "string",
+          "enum": ["chrome", "msedge", "firefox", "opera", "safari", "internet explorer"]
         },
         "arguments": {
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^--[a-zA-Z0-9]+=[a-zA-Z0-9]+$"
+            "pattern": "^--[a-zA-Z0-9]+=?[a-zA-Z0-9]+$"
           },
           "examples": ["--headless=new"]
         }
@@ -111,7 +181,7 @@
             "hint": "property type"
           },
           "valueConverter": {
-            "type": "string"
+            "type": "janino expression"
           },
           "actionName": {
             "type": "string",

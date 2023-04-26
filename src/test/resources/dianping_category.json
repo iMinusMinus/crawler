@@ -2,7 +2,7 @@
   "id": "dianping-${city}-category",
   "url": "https://www.dianping.com/",
   "settings": {
-    "driverName": "chrome",
+    "browserName": "chrome",
     "arguments": []
   },
   "steps": [

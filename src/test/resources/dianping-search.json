@@ -3,8 +3,10 @@
   "url": "https://www.dianping.com/",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
-    "driverName": "chrome",
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+    "browserName": "chrome",
+    "device": {
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+    },
     "arguments": [],
     "hint": "if not change user-agent, visit dianping homepage get un-authorization"
   },

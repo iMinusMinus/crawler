@@ -3,7 +3,7 @@
   "url": "https://www.dianping.com/{cityPinyinSpelling}",
   "hint": "可能不分页，可能商区下没有地点，可能分类下没有子分类，可能分类较多，需要展开",
   "settings": {
-    "driverName": "chrome",
+    "browserName": "chrome",
     "debug": true,
     "arguments": [],
     "hint": "如果使用msedge启动失败，可以设置启动参数'webdriver.http.factory=jdk-http-client'来尝试解决"
