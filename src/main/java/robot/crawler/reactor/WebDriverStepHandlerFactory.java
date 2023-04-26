@@ -17,11 +17,18 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public class WebDriverStepHandlerFactory {
 
     private static final Map<Step.Type, StepHandler> handlers = new ConcurrentHashMap<>();
+
+    private static final Map<String, BiConsumer<WebDriver, String>> anti = new ConcurrentHashMap<>();
+
+    public static void registerAnti(String domain, BiConsumer<WebDriver, String> func) {
+        anti.put(domain, func);
+    }
 
     public static StepHandler getHandler(WebDriver webDriver, Step.Type type) {
         return handlers.computeIfAbsent(type, (x) -> {
@@ -107,11 +114,20 @@ public class WebDriverStepHandlerFactory {
                 case NAVIGATE -> {
                     String target = step.target();
                     assert target != null;
+                    boolean detectUrl = false;
                     switch (target) {
                         case BACK -> webDriver.navigate().back();
                         case FORWARD -> webDriver.navigate().forward();
                         case REFRESH -> webDriver.navigate().refresh();
-                        default -> webDriver.navigate().to(target);
+                        default -> {
+                            webDriver.navigate().to(target);
+                            detectUrl = true;
+                        }
+                    }
+                    String currentUrl = webDriver.getCurrentUrl();
+                    if (detectUrl && !target.equals(currentUrl)) {
+                        currentUrl = currentUrl.substring(currentUrl.indexOf("//") + 2);
+                        anti.get(currentUrl.substring(0, currentUrl.indexOf("/"))).accept(webDriver, target);
                     }
                     // 移除之前页面保存的信息
                     String windowId = context.currentWindow();

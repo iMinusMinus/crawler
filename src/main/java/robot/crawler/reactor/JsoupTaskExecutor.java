@@ -21,8 +21,8 @@ public class JsoupTaskExecutor implements TaskExecutor {
     @Override
     public void setUp(TaskSettingDefinition settings) {
         connection = new HttpConnection();
-        if (settings.userAgent() != null) {
-            connection.userAgent(settings.userAgent());
+        if (settings.device() != null && settings.device().userAgent() != null) {
+            connection.userAgent(settings.device().userAgent());
         }
         if (Proxy.Type.HTTP.name().equalsIgnoreCase(settings.proxyType())) {
             String[] proxy = settings.proxyValue().split(":");
@@ -30,9 +30,6 @@ public class JsoupTaskExecutor implements TaskExecutor {
         } else if (Proxy.Type.SOCKS.name().equalsIgnoreCase(settings.proxyType())) {
             String[] proxy = settings.proxyValue().split(":");
             connection.proxy(new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(proxy[0], Integer.parseInt(proxy[1]))));
-        }
-        if (settings.userAgent() != null) {
-            connection.userAgent(settings.userAgent());
         }
         context = new JsoupContext();
     }

@@ -4,7 +4,13 @@ import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.chromium.ChromiumOptions;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.Event;
+import org.openqa.selenium.devtools.v110.emulation.Emulation;
+import org.openqa.selenium.devtools.v110.emulation.model.UserAgentBrandVersion;
+import org.openqa.selenium.devtools.v110.emulation.model.UserAgentMetadata;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.remote.AbstractDriverOptions;
@@ -12,12 +18,11 @@ import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import robot.crawler.spec.Step;
-import robot.crawler.spec.TaskExecutor;
-import robot.crawler.spec.TaskSettingDefinition;
+import robot.crawler.spec.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class WebDriverTaskExecutor implements TaskExecutor {
 
@@ -35,11 +40,11 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         AbstractDriverOptions options;
         WebDriver delegate;
 
-        if (Browser.CHROME.is(settings.driverName())) {
+        if (Browser.CHROME.is(settings.browserName())) {
             options = new ChromeOptions();
             configureOptions(options, settings);
             delegate = new ChromeDriver((ChromeOptions) options);
-        } else if (Browser.EDGE.is(settings.driverName())) {
+        } else if (Browser.EDGE.is(settings.browserName())) {
             options = new EdgeOptions();
             configureOptions(options, settings);
             delegate = new EdgeDriver((EdgeOptions) options);
@@ -49,6 +54,47 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         context = new WebDriverContext(true);
         webDriver = new EventFiringDecorator(new WebDriverWindowsEventListener(context), new WebDriverErrorEventListener())
                 .decorate(delegate);
+        if (webDriver instanceof ChromiumDriver chromium) {
+            DevTools devTools = chromium.getDevTools();
+            devTools.createSession();
+//            devTools.addListener();
+            Device device = settings.device();
+            if (device != null ) {
+                if (device.width() != null && device.height() != null
+                        && device.pixRatio() != null && device.isMobile() != null) {
+                    devTools.send(Emulation.setDeviceMetricsOverride(device.width(), device.height(), device.pixRatio(),
+                            device.isMobile(),
+                            Optional.empty(), Optional.empty(), Optional.empty(),
+                            Optional.empty(), Optional.empty(),
+                            Optional.empty(),
+                            Optional.empty(), Optional.empty(), Optional.empty()));
+                }
+                UserAgentMetadata userAgentMetadata = null;
+                if (device.platformName() != null && device.platformVersion() != null && device.architecture() != null
+                        && device.model() != null && device.isMobile() != null) {
+                    UserAgentBrandVersion brand = device.brandName() != null && device.brandVersion() != null ?
+                            new UserAgentBrandVersion(device.brandName(), device.brandVersion()) : null;
+                    userAgentMetadata = new UserAgentMetadata(brand != null ? Optional.of(List.of(brand)) : Optional.empty(),
+                            Optional.empty(),
+                            Optional.ofNullable(device.fullBrowserVersion()),
+                            device.platformName(), device.platformVersion(),
+                            device.architecture(),
+                            device.model(), device.isMobile(), Optional.empty(), Optional.empty());
+                }
+                if (device.userAgent() != null) {
+                    devTools.send(Emulation.setUserAgentOverride(device.userAgent(),
+                            Optional.ofNullable(settings.location()).map(ins -> ins.acceptLanguage()),
+                            Optional.ofNullable(device.platformName()),
+                            Optional.ofNullable(userAgentMetadata)));
+                }
+            }
+            Location location = settings.location();
+            if (location != null) {
+                devTools.send(Emulation.setGeolocationOverride(Optional.ofNullable(location.latitude()),
+                        Optional.ofNullable(location.longitude()),
+                        Optional.ofNullable(location.accuracy())));
+            }
+        }
     }
 
     private void configureOptions(AbstractDriverOptions options, TaskSettingDefinition settings) {

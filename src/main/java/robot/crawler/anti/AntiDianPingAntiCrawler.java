@@ -1,5 +1,6 @@
 package robot.crawler.anti;
 
+import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,8 @@ public abstract class AntiDianPingAntiCrawler {
 
     private static final String PROTO_END = "//";
 
+    public static final String DIANPING_AUTH_DOMAIN = "verify.meituan.com";
+
     public static String normalizeUrl(String currentUrl, String url) {
         try {
             new URL(url);
@@ -23,5 +26,14 @@ public abstract class AntiDianPingAntiCrawler {
 
     // TODO dianping 返回标题为"403 Forbidden"
 
-    // TOOD dianping 跳转滑块验证码界面（验证通过后可继续浏览）
+    // 跳转滑块验证码界面（验证通过后可继续浏览）
+    public static void handleVerify(WebDriver webDriver, String expect) {
+        while(!expect.equals(webDriver.getCurrentUrl())) {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException ie) {
+                Thread.interrupted();
+            }
+        }
+    }
 }
