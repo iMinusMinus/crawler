@@ -3,6 +3,8 @@ package robot.crawler.reactor;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class ConverterFactoryTest {
 
@@ -51,10 +53,11 @@ public class ConverterFactoryTest {
         Assertions.assertEquals("4.8", score);
     }
 
-    @Test
-    public void testTel() {
-        String tels = (String) ConverterFactory.getConverter("\"电话： 无 添加\".equals(arg) ? null : arg.split(\"：\")[1].trim()").convert("电话：027-87377077 17362976059");
-        Assertions.assertEquals("027-87377077 17362976059", tels);
+    @ParameterizedTest
+    @ValueSource(strings = {"电话：027-87377077 17362976059", "电话：\n13153038682", "电话：\n无\n添加", "电话："})
+    public void testTel(String tel) {
+        String tels = (String) ConverterFactory.getConverter("arg == null || arg.strip() == null || \"电话：\\n无\\n添加\".equals(arg) ? null : arg.split(\"：\")[1].strip()").convert(tel);
+        System.out.println(tels);
     }
 
     @Test

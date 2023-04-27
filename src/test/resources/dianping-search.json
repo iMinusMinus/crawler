@@ -273,7 +273,7 @@
               "outputPropertyName": "tel",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "\"电话： 无 添加\".equals(arg) ? null : arg.split(\"：\")[1].trim()"
+              "valueConverter": "arg == null || arg.strip() == null || \"电话：\\n无\\n添加\".equals(arg) ? null : arg.split(\"：\")[1].strip()"
             },
             {
               "id": "shop-site-more-info",
