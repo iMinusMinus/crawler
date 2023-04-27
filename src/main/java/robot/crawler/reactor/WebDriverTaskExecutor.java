@@ -138,6 +138,11 @@ public class WebDriverTaskExecutor implements TaskExecutor {
     }
 
     @Override
+    public String currentUrl() {
+        return webDriver.getCurrentUrl();
+    }
+
+    @Override
     public void tearDown() {
         if (!debug) {
             webDriver.quit();

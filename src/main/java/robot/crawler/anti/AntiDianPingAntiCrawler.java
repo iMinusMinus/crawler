@@ -28,12 +28,14 @@ public abstract class AntiDianPingAntiCrawler {
 
     // 跳转滑块验证码界面（验证通过后可继续浏览）
     public static void handleVerify(WebDriver webDriver, String expect) {
-        while(!expect.equals(webDriver.getCurrentUrl())) {
+        int times = 0;
+        while(times < 1024 && !normalizeUrl(webDriver.getCurrentUrl(), expect).equals(webDriver.getCurrentUrl())) {
             try {
                 Thread.sleep(3000);
             } catch (InterruptedException ie) {
                 Thread.interrupted();
             }
+            times++;
         }
     }
 }

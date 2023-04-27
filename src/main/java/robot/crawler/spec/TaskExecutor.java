@@ -17,9 +17,9 @@ public interface TaskExecutor {
         try {
             setUp(task.settings());
             List<Map<String, Object>> data = doExecute(task.url(), task.steps());
-            return new Result(task.id(), enterAt, System.currentTimeMillis(), data, false);
+            return new Result(task.id(), enterAt, System.currentTimeMillis(), data, false, currentUrl());
         } catch (RuntimeException e) {
-            return new Result(task.id(), enterAt, System.currentTimeMillis(), doHandleException(e), true);
+            return new Result(task.id(), enterAt, System.currentTimeMillis(), doHandleException(e), true, currentUrl());
         } finally {
             tearDown();
         }
@@ -30,6 +30,10 @@ public interface TaskExecutor {
     default List<Map<String, Object>> doHandleException(RuntimeException e) {
         log.error(e.getMessage(), e);
         throw e;
+    }
+
+    default String currentUrl() {
+        return null;
     }
 
     void tearDown();

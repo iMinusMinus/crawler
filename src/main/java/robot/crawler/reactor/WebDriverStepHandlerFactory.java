@@ -76,6 +76,8 @@ public class WebDriverStepHandlerFactory {
 
         private final Map<String, String> windows = new HashMap<>();
 
+        private final Map<String, String> urls = new HashMap<>();
+
         private static final String BACK = "back";
 
         private static final String FORWARD = "forward";
@@ -88,6 +90,11 @@ public class WebDriverStepHandlerFactory {
             expectedConditions.put("elementPresence", (selector) -> driver -> !driver.findElements(By.cssSelector(selector)).isEmpty()
                     || !driver.findElements(By.xpath(selector)).isEmpty());
             expectedConditions.put("urlContains", ExpectedConditions::urlContains);
+        }
+
+        private String getDomainOfUrl(String currentUrl) {
+            currentUrl = currentUrl.substring(currentUrl.indexOf("//") + 2);
+            return currentUrl.substring(0, currentUrl.indexOf("/"));
         }
 
         @Override
@@ -126,8 +133,9 @@ public class WebDriverStepHandlerFactory {
                     }
                     String currentUrl = webDriver.getCurrentUrl();
                     if (detectUrl && !target.equals(currentUrl)) {
-                        currentUrl = currentUrl.substring(currentUrl.indexOf("//") + 2);
-                        anti.get(currentUrl.substring(0, currentUrl.indexOf("/"))).accept(webDriver, target);
+                        Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
+                                .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
+                                .accept(webDriver, target);
                     }
                     // 移除之前页面保存的信息
                     String windowId = context.currentWindow();
@@ -142,11 +150,13 @@ public class WebDriverStepHandlerFactory {
                     Set<String> beforeClick = webDriver.getWindowHandles();
                     WebElement clickable = context.getElement(step.target());
                     if (clickable != null) {
+                        String href = clickable.getAttribute("href");
                         new Actions(webDriver).click(clickable).perform();
                         Set<String> afterClick = webDriver.getWindowHandles();
                         afterClick.removeAll(beforeClick);
                         if (!afterClick.isEmpty()) {
                             windows.put(step.id(), afterClick.iterator().next());
+                            urls.put(step.id(), href);
                         }
                     } else if(!step.ignoreNotApply()) {
                         throw new IllegalArgumentException("click target must exist");
@@ -187,6 +197,13 @@ public class WebDriverStepHandlerFactory {
                     }
                     webDriver.switchTo().window(windowToActive);
                     context.activeWindow(webDriver.getWindowHandle());
+                    String expectUrl = urls.remove(step.target());
+                    String currentUrl = webDriver.getCurrentUrl();
+                    if (expectUrl != null && !expectUrl.equals(currentUrl)) {
+                        Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
+                                .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
+                                .accept(webDriver, expectUrl);
+                    }
                 }
                 case CLOSE -> webDriver.close();
                 case SCROLL -> {
