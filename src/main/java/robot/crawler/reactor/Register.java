@@ -7,5 +7,7 @@ public abstract class Register {
     public static void initialize() {
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_AUTH_DOMAIN,
                 AntiDianPingAntiCrawler::handleVerify);
+        JsoupStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
+                AntiDianPingAntiCrawler::failIfVerify);
     }
 }

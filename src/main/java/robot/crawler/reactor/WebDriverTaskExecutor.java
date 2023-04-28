@@ -2,12 +2,12 @@ package robot.crawler.reactor;
 
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.Event;
 import org.openqa.selenium.devtools.v110.emulation.Emulation;
 import org.openqa.selenium.devtools.v110.emulation.model.UserAgentBrandVersion;
 import org.openqa.selenium.devtools.v110.emulation.model.UserAgentMetadata;
@@ -16,9 +16,11 @@ import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.remote.AbstractDriverOptions;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.events.EventFiringDecorator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import robot.crawler.spec.*;
+import robot.crawler.spec.Device;
+import robot.crawler.spec.Location;
+import robot.crawler.spec.Step;
+import robot.crawler.spec.TaskExecutor;
+import robot.crawler.spec.TaskSettingDefinition;
 
 import java.util.List;
 import java.util.Map;
@@ -26,11 +28,9 @@ import java.util.Optional;
 
 public class WebDriverTaskExecutor implements TaskExecutor {
 
-    private static final Logger log = LoggerFactory.getLogger(WebDriverTaskExecutor.class);
+    protected WebDriver webDriver;
 
-    private WebDriver webDriver;
-
-    private WebDriverContext context;
+    protected Context<WebElement> context;
 
     private boolean debug;
 
@@ -51,7 +51,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         } else {
             throw new RuntimeException("当前仅支持chrome、edge，请联系开发者");
         }
-        context = new WebDriverContext(true);
+        context = new Context<>(true);
         webDriver = new EventFiringDecorator(new WebDriverWindowsEventListener(context), new WebDriverErrorEventListener())
                 .decorate(delegate);
         if (webDriver instanceof ChromiumDriver chromium) {
@@ -83,7 +83,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                 }
                 if (device.userAgent() != null) {
                     devTools.send(Emulation.setUserAgentOverride(device.userAgent(),
-                            Optional.ofNullable(settings.location()).map(ins -> ins.acceptLanguage()),
+                            Optional.ofNullable(settings.location()).map(Location::acceptLanguage),
                             Optional.ofNullable(device.platformName()),
                             Optional.ofNullable(userAgentMetadata)));
                 }

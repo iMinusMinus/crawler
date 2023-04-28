@@ -1,7 +1,12 @@
 package robot.crawler.reactor;
 
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.WheelInput;
 import org.openqa.selenium.support.ui.ExpectedCondition;
@@ -14,7 +19,14 @@ import robot.crawler.spec.Locator;
 import robot.crawler.spec.Step;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
@@ -22,7 +34,7 @@ import java.util.function.Function;
 
 public class WebDriverStepHandlerFactory {
 
-    private static final Map<Step.Type, StepHandler> handlers = new ConcurrentHashMap<>();
+    private static final Map<Step.Type, StepHandler<Context<WebElement>, Step, WebElement>> handlers = new ConcurrentHashMap<>();
 
     private static final Map<String, BiConsumer<WebDriver, String>> anti = new ConcurrentHashMap<>();
 
@@ -30,7 +42,7 @@ public class WebDriverStepHandlerFactory {
         anti.put(domain, func);
     }
 
-    public static StepHandler getHandler(WebDriver webDriver, Step.Type type) {
+    public static StepHandler<Context<WebElement>, Step, WebElement> getHandler(WebDriver webDriver, Step.Type type) {
         return handlers.computeIfAbsent(type, (x) -> {
             final StepHandler stepHandler;
             switch (type) {
@@ -44,31 +56,32 @@ public class WebDriverStepHandlerFactory {
         });
     }
 
-    private record LocatorHandler(WebDriver webDriver) implements StepHandler<WebDriverContext, Locator, WebElement> {
+    private record LocatorHandler(
+            WebDriver webDriver) implements StepHandler<Context<WebElement>, Locator, WebElement> {
 
         @Override
-            public void handle(WebDriverContext context, Locator step) {
-                log.debug("handle locator step: {}", step);
-                By locator;
-                if (step.xpath() != null) {
-                    locator = By.xpath(step.xpath());
-                } else if (step.selector() != null) {
-                    locator = By.cssSelector(step.selector());
-                } else {
-                    throw new IllegalArgumentException("missing xpath/css selector for locator");
-                }
-                WebElement scope = context.currentElement(webDriver.getWindowHandle());
-                boolean findInScope = scope != null && !step.escapeScope();
-                List<WebElement> elements = findInScope ? scope.findElements(locator) : webDriver.findElements(locator);
-                if (step.multi()) {
-                    context.addElements(step.id(), elements);
-                } else if (!elements.isEmpty()) {
-                    context.addElement(step.id(), elements.get(0));
-                }
+        public void handle(Context<WebElement> context, Locator step) {
+            log.debug("handle locator step: {}", step);
+            By locator;
+            if (step.xpath() != null) {
+                locator = By.xpath(step.xpath());
+            } else if (step.selector() != null) {
+                locator = By.cssSelector(step.selector());
+            } else {
+                throw new IllegalArgumentException("missing xpath/css selector for locator");
+            }
+            WebElement scope = context.currentElement(webDriver.getWindowHandle());
+            boolean findInScope = scope != null && !step.escapeScope();
+            List<WebElement> elements = findInScope ? scope.findElements(locator) : webDriver.findElements(locator);
+            if (step.multi()) {
+                context.addElements(step.id(), elements);
+            } else if (!elements.isEmpty()) {
+                context.addElement(step.id(), elements.get(0));
             }
         }
+    }
 
-    private static class ActionHandler implements StepHandler<WebDriverContext, Action, WebElement> {
+    static class ActionHandler implements StepHandler<Context<WebElement>, Action, WebElement> {
 
         private final WebDriver webDriver;
 
@@ -98,7 +111,7 @@ public class WebDriverStepHandlerFactory {
         }
 
         @Override
-        public void handle(WebDriverContext context, Action step) {
+        public void handle(Context<WebElement> context, Action step) {
             log.debug("handle action step: {}", step);
             Action.Type type = Action.Type.getInstance(step.actionName());
             if (type == null) {
@@ -158,7 +171,7 @@ public class WebDriverStepHandlerFactory {
                             windows.put(step.id(), afterClick.iterator().next());
                             urls.put(step.id(), href);
                         }
-                    } else if(!step.ignoreNotApply()) {
+                    } else if (!step.ignoreNotApply()) {
                         throw new IllegalArgumentException("click target must exist");
                     }
                 }
@@ -212,7 +225,7 @@ public class WebDriverStepHandlerFactory {
                         WebElement origin = context.getElement(step.target());
                         WheelInput.ScrollOrigin scrollOrigin = WheelInput.ScrollOrigin.fromElement(origin);
                         actions.scrollFromOrigin(scrollOrigin, step.deltaX(), step.deltaY()).perform();
-                    } else if (step.scrollTo() != null){
+                    } else if (step.scrollTo() != null) {
                         WebElement scrollTo = context.getElement(step.scrollTo());
                         actions.scrollToElement(scrollTo).perform();
                     } else {
@@ -223,152 +236,162 @@ public class WebDriverStepHandlerFactory {
         }
     }
 
-    private record FinderHandler(WebDriver webDriver) implements StepHandler<WebDriverContext, Finder, WebElement> {
+    private record FinderHandler(WebDriver webDriver) implements StepHandler<Context<WebElement>, Finder, WebElement> {
 
-            private static final String RAW_VALUE_PROPERTY_NAME_FMT = "__%1$s__";
+        private static final String RAW_VALUE_PROPERTY_NAME_FMT = "__%1$s__";
 
         @Override
-            public void handle(WebDriverContext context, Finder step) {
-                log.debug("handle finder step: {}", step);
-                By locator;
-                if (step.xpath() != null) {
-                    locator = By.xpath(step.xpath());
-                } else if (step.selector() != null) {
-                    locator = By.cssSelector(step.selector());
-                } else {
-                    locator = null;
-                }
-                WebElement scope = context.currentElement(webDriver.getWindowHandle());
-                WebElement target;
-                if ((scope == null || step.escapeScope()) && locator != null) {
-                    target = webDriver.findElements(locator).stream().findFirst().orElse(null);
-                } else if (scope != null && locator != null) {
-                    target = scope.findElements(locator).stream().findFirst().orElse(null);
-                } else {
-                    target = scope;
-                }
-                if (target == null && step.required()) {
-                    throw new RuntimeException("element not found, may be wrong target/scope, or loaded page content not your expect");
-                }
-                Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
-                if (type == null) {
-                    log.warn("supported getter type: {}, '{}' was unknown", Arrays.toString(Finder.ValueGetterType.values()), step.valueGetter());
-                    throw new IllegalArgumentException("unknown value getter type: " + step.valueGetter());
-                }
-                String value = resolve(target, type, step);
-                Object converted = convert(value, step.valueConverter());
-                context.fillResult(step.outputPropertyName(), converted);
-                if (step.outputPropertyName() != null && !Objects.equals(value, converted)) {
-                    context.fillResult(RAW_VALUE_PROPERTY_NAME_FMT.formatted(step.outputPropertyName()), value);
-                }
+        public void handle(Context<WebElement> context, Finder step) {
+            log.debug("handle finder step: {}", step);
+            By locator;
+            if (step.xpath() != null) {
+                locator = By.xpath(step.xpath());
+            } else if (step.selector() != null) {
+                locator = By.cssSelector(step.selector());
+            } else {
+                locator = null;
             }
-
-            private String resolve(WebElement element, Finder.ValueGetterType type, Finder hint) {
-                if (element == null) {
-                    return null;
-                }
-                String value;
-                switch (type) {
-                    case TEXT -> value = element.getText();
-                    case ATTRIBUTE -> value = element.getAttribute(hint.attributeKey());
-                    default -> value = null;
-                }
-                return value;
+            WebElement scope = context.currentElement(webDriver.getWindowHandle());
+            WebElement target;
+            if ((scope == null || step.escapeScope()) && locator != null) {
+                target = webDriver.findElements(locator).stream().findFirst().orElse(null);
+            } else if (scope != null && locator != null) {
+                target = scope.findElements(locator).stream().findFirst().orElse(null);
+            } else {
+                target = scope;
             }
-
-            private Object convert(String raw, String converterId) {
-                if (converterId == null || raw == null) {
-                    return raw;
-                }
-                return ConverterFactory.getConverter(converterId).convert(raw);
+            if (target == null && step.required()) {
+                throw new RuntimeException("element not found, may be wrong target/scope, or loaded page content not your expect");
+            }
+            Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
+            if (type == null) {
+                log.warn("supported getter type: {}, '{}' was unknown", Arrays.toString(Finder.ValueGetterType.values()), step.valueGetter());
+                throw new IllegalArgumentException("unknown value getter type: " + step.valueGetter());
+            }
+            String value = resolve(target, type, step);
+            Object converted = convert(value, step.valueConverter());
+            context.fillResult(step.outputPropertyName(), converted);
+            if (step.outputPropertyName() != null && !Objects.equals(value, converted)) {
+                context.fillResult(RAW_VALUE_PROPERTY_NAME_FMT.formatted(step.outputPropertyName()), value);
             }
         }
 
-    private record BoxHandler(WebDriver webDriver) implements StepHandler<WebDriverContext, Box, WebElement> {
+        private String resolve(WebElement element, Finder.ValueGetterType type, Finder hint) {
+            if (element == null) {
+                return null;
+            }
+            String value;
+            switch (type) {
+                case TEXT -> value = element.getText();
+                case ATTRIBUTE -> value = element.getAttribute(hint.attributeKey());
+                default -> value = null;
+            }
+            return value;
+        }
+
+        private Object convert(String raw, String converterId) {
+            if (converterId == null || raw == null) {
+                return raw;
+            }
+            return ConverterFactory.getConverter(converterId).convert(raw);
+        }
+    }
+
+    static class BoxHandler implements StepHandler<Context<WebElement>, Box, WebElement> {
+
+        protected final WebDriver webDriver;
+
+        public BoxHandler(WebDriver webDriver) {
+            this.webDriver = webDriver;
+        }
 
         @Override
-            public boolean beforeHandle(WebDriverContext context, Box step) {
-                if (step.hook() != null && step.hook().doBefore() != null) {
-                    return (Boolean) WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doBefore());
-                }
-                return true;
+        public boolean beforeHandle(Context<WebElement> context, Box step) {
+            if (step.hook() != null && step.hook().doBefore() != null) {
+                return (Boolean) WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doBefore());
             }
+            return true;
+        }
 
-            @Override
-            public void handle(WebDriverContext context, Box step) {
-                log.debug("handle box step: {}", step);
-                List<WebElement> elements = context.getElements(step.target());
-                WebElement webElement = context.getElement(step.target());
-                if (elements != null) { // XX列表
-                    boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
-                    if (isRootObject) {
-                        List<Map<String, Object>> root = new ArrayList<>();
-                        context.initialResult(root);
-                        // 不存在分页时处理
-                        if (elements.isEmpty() && step.noPushToContext()) {
-                            elements.add(null);
-                        }
-                    } else if (step.outputValueType() != null) { // 属性类型为list/object
-                        Object value = ObjectFactory.getObject(step.outputValueType());
-                        context.fillResult(step.outputPropertyName(), value);
-                        context.pushResult(value);
-                    }
-                    for (WebElement element : elements) {
-                        handleSteps(context, step, element);
-                    }
-                    if (!isRootObject && step.outputValueType() != null) {
-                        log.debug("pop result on step: {}", step);
-                        context.popResult();
-                    }
-                } else if (webElement != null) { // XX详情
-                    if (step.outputValueType() != null) {
-                        Object value = ObjectFactory.getObject(step.outputValueType());
-                        context.fillResult(step.outputPropertyName(), value);
-                        context.pushResult(value);
-                    }
-                    handleSteps(context, step, webElement);
-                    if (step.outputValueType() != null) {
-                        context.popResult();
-                    }
-                }
-            }
-
-            private void handleSteps(WebDriverContext context, Box step, WebElement element) {
+        @Override
+        public void handle(Context<WebElement> context, Box step) {
+            log.debug("handle box step: {}", step);
+            List<WebElement> elements = context.getElements(step.target());
+            WebElement webElement = context.getElement(step.target());
+            if (elements != null) { // XX列表
                 boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
-                if (step.wrap()) { // 子步骤的"outputPropertyName"不为null，box需要创建map把子步骤属性包起来
-                    Map<String, Object> object = new HashMap<>();
-                    context.pushResult(object);
-                }
-                String windowHandleId = webDriver.getWindowHandle();
-                if (!step.noPushToContext()) {
-                    context.snapshotElement(windowHandleId, element);
-                }
-                for (Step s : step.steps()) {
-                    Step.Type type = Step.Type.getInstance(s.type());
-                    if (type == null) {
-                        throw new IllegalArgumentException("step missing type: " + step);
+                if (isRootObject) {
+                    List<Map<String, Object>> root = new ArrayList<>();
+                    context.initialResult(root);
+                    // 不存在分页时处理
+                    if (elements.isEmpty() && step.noPushToContext()) {
+                        elements.add(null);
                     }
-                    WebDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, s);
+                } else if (step.outputValueType() != null) { // 属性类型为list/object
+                    Object value = ObjectFactory.getObject(step.outputValueType());
+                    context.fillResult(step.outputPropertyName(), value);
+                    context.pushResult(value);
                 }
-                if (!step.noPushToContext()) {
-                    context.restoreElement(windowHandleId);
+                for (WebElement element : elements) {
+                    handleSteps(context, step, element);
                 }
-                if (step.wrap()) {
-                    context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
-                }
-            }
-
-            @Override
-            public void onThrow(WebDriverContext context, Box step, RuntimeException e) {
-                if (step.hook() != null && step.hook().doThrowing() != null) {
-                    WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doThrowing());
-                    return;
-                }
-                if ((!Box.ROOT_OBJECT_ID.equals(step.outputPropertyName()) && step.outputValueType() != null) || step.wrap()) {
+                if (!isRootObject && step.outputValueType() != null) {
+                    log.debug("pop result on step: {}", step);
                     context.popResult();
                 }
-                throw e;
+            } else if (webElement != null) { // XX详情
+                if (step.outputValueType() != null) {
+                    Object value = ObjectFactory.getObject(step.outputValueType());
+                    context.fillResult(step.outputPropertyName(), value);
+                    context.pushResult(value);
+                }
+                handleSteps(context, step, webElement);
+                if (step.outputValueType() != null) {
+                    context.popResult();
+                }
             }
-
         }
+
+        private void handleSteps(Context<WebElement> context, Box step, WebElement element) {
+            boolean isRootObject = Box.ROOT_OBJECT_ID.equals(step.outputPropertyName());
+            if (step.wrap()) { // 子步骤的"outputPropertyName"不为null，box需要创建map把子步骤属性包起来
+                Map<String, Object> object = new HashMap<>();
+                context.pushResult(object);
+            }
+            String windowHandleId = webDriver.getWindowHandle();
+            if (!step.noPushToContext()) {
+                context.snapshotElement(windowHandleId, element);
+            }
+            for (Step s : step.steps()) {
+                Step.Type type = Step.Type.getInstance(s.type());
+                if (type == null) {
+                    throw new IllegalArgumentException("step missing type: " + step);
+                }
+                getStepHandler(webDriver, type).execute(context, s);
+            }
+            if (!step.noPushToContext()) {
+                context.restoreElement(windowHandleId);
+            }
+            if (step.wrap()) {
+                context.fillResult(isRootObject ? null : step.outputPropertyName(), context.popResult());
+            }
+        }
+
+        protected StepHandler<Context<WebElement>, Step, WebElement> getStepHandler(WebDriver webDriver, Step.Type type) {
+            return WebDriverStepHandlerFactory.getHandler(webDriver, type);
+        }
+
+        @Override
+        public void onThrow(Context<WebElement> context, Box step, RuntimeException e) {
+            if (step.hook() != null && step.hook().doThrowing() != null) {
+                WebDriverStepHookExecutor.execute(webDriver, context, step.hook().doThrowing());
+                return;
+            }
+            if ((!Box.ROOT_OBJECT_ID.equals(step.outputPropertyName()) && step.outputValueType() != null) || step.wrap()) {
+                context.popResult();
+            }
+            throw e;
+        }
+
+    }
 }

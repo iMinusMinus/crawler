@@ -1,6 +1,7 @@
 package robot.crawler.reactor;
 
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.events.WebDriverListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.Set;
 
-public record WebDriverWindowsEventListener(WebDriverContext context) implements WebDriverListener {
+public record WebDriverWindowsEventListener(Context<? extends WebElement> context) implements WebDriverListener {
 
     private static final Logger log = LoggerFactory.getLogger(WebDriverWindowsEventListener.class);
 

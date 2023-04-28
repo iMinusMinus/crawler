@@ -2,6 +2,7 @@ package robot.crawler.reactor;
 
 import org.codehaus.janino.ScriptEvaluator;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 
 public abstract class WebDriverStepHookExecutor {
 
@@ -13,12 +14,12 @@ public abstract class WebDriverStepHookExecutor {
 
     private static final int TARGET_VERSION = 8;
 
-    public static Object execute(WebDriver webDriver, WebDriverContext context, String expression) {
+    public static Object execute(WebDriver webDriver, Context<? extends WebElement> context, String expression) {
         try {
             ScriptEvaluator evaluator = new ScriptEvaluator();
             evaluator.setSourceVersion(SOURCE_VERSION);
             evaluator.setTargetVersion(TARGET_VERSION);
-            evaluator.setParameters(new String[]{WEB_DRIVER_PARAMETER_NAME, CONTEXT_PARAMETER_NAME}, new Class[]{WebDriver.class, WebDriverContext.class});
+            evaluator.setParameters(new String[]{WEB_DRIVER_PARAMETER_NAME, CONTEXT_PARAMETER_NAME}, new Class[]{WebDriver.class, Context.class});
             evaluator.setReturnType(Object.class);
             evaluator.cook(expression);
             return evaluator.evaluate(webDriver, context);

@@ -1,5 +1,6 @@
 package robot.crawler.anti;
 
+import org.jsoup.nodes.Element;
 import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,13 @@ public abstract class AntiDianPingAntiCrawler {
 
     private static final String PROTO_END = "//";
 
+    public static final String DIANPING_HOST = "www.dianping.com";
+
     public static final String DIANPING_AUTH_DOMAIN = "verify.meituan.com";
+
+    public static final String TITLE_TAG = "title";
+
+    public static final String DIANPING_VERIFY_TITLE = "验证中心";
 
     public static String normalizeUrl(String currentUrl, String url) {
         try {
@@ -36,6 +43,12 @@ public abstract class AntiDianPingAntiCrawler {
                 Thread.interrupted();
             }
             times++;
+        }
+    }
+
+    public static void failIfVerify(Element element) {
+        if (DIANPING_VERIFY_TITLE.equals(element.getElementsByTag(TITLE_TAG).get(0).text())) {
+            throw new RuntimeException("fail as verify page display");
         }
     }
 }

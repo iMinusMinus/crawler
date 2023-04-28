@@ -3,6 +3,7 @@ package robot.crawler.reactor;
 import org.jsoup.Connection;
 import org.jsoup.helper.HttpConnection;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
@@ -16,7 +17,7 @@ public class JsoupTaskExecutor implements TaskExecutor {
 
     private Connection connection;
 
-    private JsoupContext context;
+    private Context<Element> context;
 
     @Override
     public void setUp(TaskSettingDefinition settings) {
@@ -31,7 +32,7 @@ public class JsoupTaskExecutor implements TaskExecutor {
             String[] proxy = settings.proxyValue().split(":");
             connection.proxy(new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(proxy[0], Integer.parseInt(proxy[1]))));
         }
-        context = new JsoupContext();
+        context = new Context<>(true);
     }
 
     @Override
