@@ -215,7 +215,8 @@
           "minWaitTime": 1000,
           "maxWaitTime": 5000,
           "expectedCondition": "elementPresence",
-          "testValue": "#summaryfilter-wrapper > div.comment-filter-box.clearfix.J-filter"
+          "testValue": "#summaryfilter-wrapper > div.comment-filter-box.clearfix.J-filter",
+          "ignoreNotApply": true
         },
         {
           "id": "shop-site-content-body",
