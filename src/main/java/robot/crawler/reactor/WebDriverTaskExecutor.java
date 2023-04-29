@@ -22,6 +22,7 @@ import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,10 +33,13 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     protected Context<WebElement> context;
 
+    protected WebDriverStepHandlerFactory webDriverStepHandlerFactory;
+
     private boolean debug;
 
     @Override
     public void setUp(TaskSettingDefinition settings) {
+        assert webDriver == null;
         debug = settings.debug();
         AbstractDriverOptions options;
         WebDriver delegate;
@@ -95,6 +99,10 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                         Optional.ofNullable(location.accuracy())));
             }
         }
+        // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
+        // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
+        webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
+        log.debug("webdriver[{}] set up success", webDriver);
     }
 
     private void configureOptions(AbstractDriverOptions options, TaskSettingDefinition settings) {
@@ -126,15 +134,20 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             if (type == null) {
                 throw new IllegalArgumentException("step missing type: " + step);
             }
-            WebDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, step);
+            webDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, step);
         }
         return context.getResult();
     }
 
     @Override
     public List<Map<String, Object>> doHandleException(RuntimeException e) {
-        log.error(e.getMessage(), e);
-        return context.getResult();
+        try {
+            log.error(e.getMessage(), e);
+            return context.getResult();
+        } catch (Exception ignore) {
+            log.warn(ignore.getMessage(), ignore);
+            return Collections.emptyList();
+        }
     }
 
     @Override
@@ -144,8 +157,10 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     @Override
     public void tearDown() {
-        if (!debug) {
-            webDriver.quit();
-        }
+        log.debug("destroy webdriver[{}]", webDriver);
+        webDriver.quit();
+        context = null;
+        webDriver = null;
+        webDriverStepHandlerFactory = null;
     }
 }

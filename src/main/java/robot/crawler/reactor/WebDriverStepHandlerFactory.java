@@ -34,19 +34,23 @@ import java.util.function.Function;
 
 public class WebDriverStepHandlerFactory {
 
-    private static final Map<Step.Type, StepHandler<Context<WebElement>, Step, WebElement>> handlers = new ConcurrentHashMap<>();
+    private final Map<Step.Type, StepHandler<Context<WebElement>, Step, WebElement>> handlers = new ConcurrentHashMap<>();
 
     private static final Map<String, BiConsumer<WebDriver, String>> anti = new ConcurrentHashMap<>();
+
+    public WebDriverStepHandlerFactory() {
+
+    }
 
     public static void registerAnti(String domain, BiConsumer<WebDriver, String> func) {
         anti.put(domain, func);
     }
 
-    public static StepHandler<Context<WebElement>, Step, WebElement> getHandler(WebDriver webDriver, Step.Type type) {
+    public StepHandler<Context<WebElement>, Step, WebElement> getHandler(WebDriver webDriver, Step.Type type) {
         return handlers.computeIfAbsent(type, (x) -> {
             final StepHandler stepHandler;
             switch (type) {
-                case BOX -> stepHandler = new BoxHandler(webDriver);
+                case BOX -> stepHandler = new BoxHandler(webDriver, this);
                 case LOCATOR -> stepHandler = new LocatorHandler(webDriver);
                 case ACTION -> stepHandler = new ActionHandler(webDriver);
                 case FINDER -> stepHandler = new FinderHandler(webDriver);
@@ -301,8 +305,11 @@ public class WebDriverStepHandlerFactory {
 
         protected final WebDriver webDriver;
 
-        public BoxHandler(WebDriver webDriver) {
+        protected final WebDriverStepHandlerFactory webDriverStepHandlerFactory;
+
+        public BoxHandler(WebDriver webDriver, WebDriverStepHandlerFactory webDriverStepHandlerFactory) {
             this.webDriver = webDriver;
+            this.webDriverStepHandlerFactory = webDriverStepHandlerFactory;
         }
 
         @Override
@@ -378,7 +385,7 @@ public class WebDriverStepHandlerFactory {
         }
 
         protected StepHandler<Context<WebElement>, Step, WebElement> getStepHandler(WebDriver webDriver, Step.Type type) {
-            return WebDriverStepHandlerFactory.getHandler(webDriver, type);
+            return webDriverStepHandlerFactory.getHandler(webDriver, type);
         }
 
         @Override
