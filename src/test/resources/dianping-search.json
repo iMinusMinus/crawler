@@ -66,6 +66,10 @@
       "outputPropertyName": "$",
       "outputValueType": "list",
       "wrap": true,
+      "hook": {
+        "doBefore": "import org.openqa.selenium.By; import java.util.ArrayList; boolean flag = webDriver.findElements(By.cssSelector(\"body > div.section.Fix.J-shop-search > div.content-wrap > div.shop-wrap > div.not-found\")).isEmpty(); if (!flag) {context.initialResult(new ArrayList());} return flag;",
+        "hint": "排除推荐内容"
+      },
       "steps": [
         {
           "name": "获取店铺链接: https://www.dianping.com/shop/{shopId}",
