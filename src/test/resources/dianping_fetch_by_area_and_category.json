@@ -285,7 +285,8 @@
                   "name": "展开更多信息",
                   "type": "action",
                   "actionName": "click",
-                  "target": "shop-site-more-info"
+                  "target": "shop-site-more-info",
+                  "ignoreNotApply": true
                 },
                 {
                   "name": "获取营业时间",
