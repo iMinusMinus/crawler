@@ -2,6 +2,7 @@ package robot.crawler.reactor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import robot.crawler.spec.ForceStopException;
 import robot.crawler.spec.Step;
 
 public interface StepHandler<CTX extends Context<E>, STEP extends Step, E> {
@@ -16,6 +17,9 @@ public interface StepHandler<CTX extends Context<E>, STEP extends Step, E> {
             handle(context, step);
             afterHandle(context, step);
         } catch (RuntimeException e) {
+            if (e instanceof ForceStopException) {
+                throw e;
+            }
             onThrow(context, step, e);
         }
     }
