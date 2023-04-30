@@ -19,6 +19,7 @@ import robot.crawler.reactor.TaskExecutorFactory;
 import robot.crawler.reactor.WebDriverTaskExecutor;
 import robot.crawler.spec.Action;
 import robot.crawler.spec.Finder;
+import robot.crawler.spec.ForceStopException;
 import robot.crawler.spec.Locator;
 import robot.crawler.spec.Progress;
 import robot.crawler.spec.Result;
@@ -216,6 +217,9 @@ public class Application {
                     // wait async http request execute success
                     Thread.currentThread().join(readTimeout);
                 }
+            }catch (ForceStopException fte) {
+                log.error("force stop, exit now!");
+                break;
             } catch (Exception ignore) {
                 log.error(ignore.getMessage(), ignore);
             }

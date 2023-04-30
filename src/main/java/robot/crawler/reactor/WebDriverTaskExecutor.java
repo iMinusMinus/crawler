@@ -17,6 +17,7 @@ import org.openqa.selenium.remote.AbstractDriverOptions;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 import robot.crawler.spec.Device;
+import robot.crawler.spec.ForceStopException;
 import robot.crawler.spec.Location;
 import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
@@ -141,7 +142,13 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     @Override
     public List<Map<String, Object>> doHandleException(RuntimeException e) {
+        if (e instanceof ForceStopException) {
+            throw e;
+        }
         try {
+            if (debug) {
+                log.info("{}", webDriver.getPageSource());
+            }
             log.error(e.getMessage(), e);
             return context.getResult();
         } catch (Exception ignore) {
@@ -158,7 +165,9 @@ public class WebDriverTaskExecutor implements TaskExecutor {
     @Override
     public void tearDown() {
         log.debug("destroy webdriver[{}]", webDriver);
-        webDriver.quit();
+        if (webDriver != null) {
+            webDriver.quit();
+        }
         context = null;
         webDriver = null;
         webDriverStepHandlerFactory = null;

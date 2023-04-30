@@ -149,7 +149,7 @@ public class WebDriverStepHandlerFactory {
                         }
                     }
                     String currentUrl = webDriver.getCurrentUrl();
-                    if (detectUrl && !target.equals(currentUrl)) {
+                    if (detectUrl) {
                         Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
                                 .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
                                 .accept(webDriver, target);
@@ -216,11 +216,9 @@ public class WebDriverStepHandlerFactory {
                     context.activeWindow(webDriver.getWindowHandle());
                     String expectUrl = urls.remove(step.target());
                     String currentUrl = webDriver.getCurrentUrl();
-                    if (expectUrl != null && !expectUrl.equals(currentUrl)) {
                         Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
                                 .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
                                 .accept(webDriver, expectUrl);
-                    }
                 }
                 case CLOSE -> webDriver.close();
                 case SCROLL -> {

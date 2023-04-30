@@ -19,6 +19,9 @@ public interface TaskExecutor {
             List<Map<String, Object>> data = doExecute(task.url(), task.steps());
             return new Result(task.id(), enterAt, System.currentTimeMillis(), data, false, currentUrl());
         } catch (RuntimeException e) {
+            if (e instanceof ForceStopException) {
+                throw e;
+            }
             return new Result(task.id(), enterAt, System.currentTimeMillis(), doHandleException(e), true, currentUrl());
         } finally {
             tearDown();
