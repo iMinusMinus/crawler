@@ -36,10 +36,12 @@ import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Application {
 
@@ -77,6 +79,12 @@ public class Application {
         @Parameter(names = {"-w", "--write"}, required = true, description = "write to place: file:// or http[s]://")
         private String outputDestination;
 
+        @Parameter(names = {"--connect-timeout"}, description = "http connection timeout")
+        private long connectionTimeout = 3000;
+
+        @Parameter(names = {"--read-timeout"}, description = "http connection timeout")
+        private long readTimeout = 5000;
+
         @Parameter(names = {"-t", "--times"}, description = "max fetch task times from remote server")
         private int fetchTaskMaxTimes = 1;
 
@@ -110,6 +118,22 @@ public class Application {
 
         public void setOutputDestination(String outputDestination) {
             this.outputDestination = outputDestination;
+        }
+
+        public long getConnectionTimeout() {
+            return connectionTimeout;
+        }
+
+        public void setConnectionTimeout(long connectionTimeout) {
+            this.connectionTimeout = connectionTimeout;
+        }
+
+        public long getReadTimeout() {
+            return readTimeout;
+        }
+
+        public void setReadTimeout(long readTimeout) {
+            this.readTimeout = readTimeout;
         }
 
         public int getFetchTaskMaxTimes() {
@@ -157,13 +181,15 @@ public class Application {
         String taskSource = commandArgs.getTaskSource();
         String destination = commandArgs.getOutputDestination();
         String to = commandArgs.getFeedback();
+        long connectionTimeout = commandArgs.getConnectionTimeout();
+        long readTimeout = commandArgs.getReadTimeout();
         int maxTimes = commandArgs.getFetchTaskMaxTimes();
 
         String executorId = System.getProperty("user.name") + "@" + resolveHostName();
 
         configureObjectMapper();
 
-        httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(connectionTimeout)).build();
 
         Register.initialize();
 
@@ -177,18 +203,18 @@ public class Application {
                 } else {
                     TaskExecutor taskExecutor = TaskExecutorFactory.getTaskExecutor(commandArgs.getExecutorType());
 
-                    feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0));
+                    feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
 
                     Result crawResult = taskExecutor.execute(task);
 
-                    feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()));
+                    feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
 
-                    pushResult(destination, crawResult);
+                    pushResult(destination, crawResult, readTimeout);
 
-                    feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()));
+                    feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
 
                     // wait async http request execute success
-                    Thread.currentThread().join(10000);
+                    Thread.currentThread().join(readTimeout);
                 }
             } catch (Exception ignore) {
                 log.error(ignore.getMessage(), ignore);
@@ -213,7 +239,7 @@ public class Application {
 
     private static boolean sleep() {
         try {
-            Thread.sleep(30000);
+            Thread.sleep(ThreadLocalRandom.current().nextLong(1000, 5000));
             return true;
         } catch (InterruptedException ie) {
             Thread.interrupted();
@@ -241,25 +267,29 @@ public class Application {
                     .GET()
                     .build();
             HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                log.error("poll task error: {}", new String(response.body().readAllBytes(), StandardCharsets.UTF_8));
+            }
             return om.readValue(response.body(), TaskDefinition.class);
         }
         return null;
     }
 
-    private static void feedback(String to, Progress progress) throws Exception {
+    private static void feedback(String to, Progress progress, long readTimeout) throws Exception {
         if ("console".equals(to)) {
             log.info("task progress: {}", progress);
         } else {
             HttpRequest request = HttpRequest.newBuilder().uri(new URI(to))
                     .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
                     .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(progress)))
+                    .timeout(Duration.ofMillis(readTimeout))
                     .build();
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(x -> log.debug("feedback to [{}] and response status: {}", to, x.statusCode()));
         }
     }
 
-    private static void pushResult(String destination, Result crawResult) throws Exception {
+    private static void pushResult(String destination, Result crawResult, long readTimeout) throws Exception {
         if (destination.startsWith(FILE_PROTOCOL)) {
             String destFile = destination;
             File dest = new File(destination.substring(FILE_PROTOCOL.length()));
@@ -273,6 +303,7 @@ public class Application {
             HttpRequest request = HttpRequest.newBuilder().uri(new URI(destination))
                     .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
                     .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(crawResult)))
+                    .timeout(Duration.ofMillis(readTimeout))
                     .build();
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(x -> log.debug("submit result to [{}] and response status: {}", destination, x.statusCode()));
