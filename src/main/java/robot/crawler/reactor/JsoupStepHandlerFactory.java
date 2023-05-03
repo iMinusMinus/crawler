@@ -150,9 +150,7 @@ public class JsoupStepHandlerFactory {
             Action.Type type = Action.Type.getInstance(step.actionName());
             assert type != null;
             switch (type) {
-                case ADD_COOKIES -> {
-                    HttpSupport.handleCookies(step.cookies(), connection::cookie);
-                }
+                case ADD_COOKIES -> HttpSupport.handleCookies(step.cookies(), connection::cookie);
                 case NAVIGATE -> {
                     try {
                         URL url = new URL(step.target());
@@ -170,22 +168,26 @@ public class JsoupStepHandlerFactory {
                 }
                 case CLICK -> {
                     Element clickable = context.getElement(step.target());
-                    String href = clickable.attr("href");
-                    if (!href.isEmpty()) {
-                        String target = AntiDianPingAntiCrawler.normalizeUrl(context.currentWindow(), href);
-                        try {
-                            URL url = new URL(target);
-                            Document newContent = connection.url(target).get();
-                            Optional.ofNullable(anti.get(url.getHost()))
-                                    .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
-                                    .accept(newContent);
-                            context.activeWindow(target);
-                            context.snapshotElement(context.currentWindow(), newContent);
-                        } catch (ForceStopException | VerifyStopException fse) {
-                            throw fse;
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
+                    if (clickable != null) {
+                        String href = clickable.attr("href");
+                        if (!href.isEmpty()) {
+                            String target = AntiDianPingAntiCrawler.normalizeUrl(context.currentWindow(), href);
+                            try {
+                                URL url = new URL(target);
+                                Document newContent = connection.url(target).get();
+                                Optional.ofNullable(anti.get(url.getHost()))
+                                        .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
+                                        .accept(newContent);
+                                context.activeWindow(target);
+                                context.snapshotElement(context.currentWindow(), newContent);
+                            } catch (ForceStopException | VerifyStopException fse) {
+                                throw fse;
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
                         }
+                    } else if (!step.ignoreNotApply()) {
+                        throw new IllegalArgumentException("click target must exist");
                     }
                 }
                 case INPUT, SCREENSHOT, SCROLL, SWITCH, WAIT -> {
