@@ -69,6 +69,10 @@ public abstract class Register {
         return obj;
     }
 
+    public static void destroyWindow(String windowId) {
+        windowObjects.remove(windowId);
+    }
+
     /**
      * 应用初始化
      */

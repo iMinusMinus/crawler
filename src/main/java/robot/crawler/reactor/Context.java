@@ -96,6 +96,7 @@ public class Context<E> {
             }
         }
         scopes.remove(id);
+        Register.destroyWindow(id);
         return id;
     }
 
