@@ -40,7 +40,7 @@
       "id": "new-opened-tab-for-shop-list",
       "name": "点击搜索",
       "type": "action",
-      "shortcut": "import java.text.MessageFormat;import org.jsoup.nodes.Element; Element element = (Element) context.getElement(\"search-input\"); String urlFormat = element.attr(\"data-s-pattern\"); String city = element.attr(\"data-s-cityid\"); MessageFormat mf = new MessageFormat(urlFormat); String[] args = {city, \"0\"}; String url = mf.format(args) + \"${keyword}\"; ((Element) context.getElement(\"search-button\")).attr(\"href\", url); return false;",
+      "shortcut": "import java.text.MessageFormat;import org.jsoup.nodes.Element; Element element = (Element) context.getElement(\"search-input\"); String urlFormat = element.attr(\"data-s-pattern\"); Element doc = (Element) context.currentElement(context.currentWindow()); String cityShops = doc.selectFirst(\"#cata-hot > div.cata-hot-detail.cata-hot-info > div > a\").attr(\"href\"); String[] fragments = cityShops.split(\"/\"); MessageFormat mf = new MessageFormat(urlFormat); String[] args = {fragments[fragments.length - 2], \"0\"}; String url = mf.format(args) + \"${keyword}\"; ((Element) context.getElement(\"search-button\")).attr(\"href\", url); return false;",
       "actionName": "click",
       "target": "search-button"
     }, {
