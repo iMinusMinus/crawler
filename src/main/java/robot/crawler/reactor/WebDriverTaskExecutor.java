@@ -36,10 +36,6 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     protected WebDriverStepHandlerFactory webDriverStepHandlerFactory;
 
-    public WebDriverTaskExecutor(WebDriverStepHandlerFactory webDriverStepHandlerFactory) {
-        this.webDriverStepHandlerFactory = webDriverStepHandlerFactory;
-    }
-
     private boolean debug;
 
     @Override
@@ -104,6 +100,9 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                         Optional.ofNullable(location.accuracy())));
             }
         }
+        // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
+        // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
+        webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
         log.debug("webdriver[{}] set up success", webDriver);
     }
 
@@ -160,8 +159,6 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             if (type == null) {
                 throw new IllegalArgumentException("step missing type: " + step);
             }
-            // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
-            // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
             webDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, step);
         }
         return context.getResult();

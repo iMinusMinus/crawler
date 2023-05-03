@@ -37,6 +37,8 @@ public abstract class AntiDianPingAntiCrawler {
 
     public static final String DIANPING_VERIFY_TITLE = "验证中心";
 
+    public static final String DIANPING_LOGIN_INVALID_TITLE = "大众点评网";
+
     public static final String FORBIDDEN_TEXT = "403 Forbidden";
 
     public static final String SIGN = "sign";
@@ -150,17 +152,27 @@ public abstract class AntiDianPingAntiCrawler {
         }
     }
 
-    public static void failIfForbidden(Element element) {
-        if (element instanceof Document document && FORBIDDEN_TEXT.equals(document.title())) {
-            log.error("exit program, current page is:\n{}", document.html());
-            throw new ForceStopException(FORBIDDEN_TEXT);
+    public static void failIfBlock(Element element) {
+        if (element instanceof Document doc) {
+            String title = doc.title();
+            if (DIANPING_VERIFY_TITLE.equals(title) || DIANPING_LOGIN_INVALID_TITLE.equals(title)) {
+                log.error("jsoup请求被转向到认证界面：\n{}", doc.html());
+                throw new VerifyStopException("fail as verify page display");
+            } else if (FORBIDDEN_TEXT.equals(title)) {
+                log.error("exit program, current page is:\n{}", doc.html());
+                throw new ForceStopException(FORBIDDEN_TEXT);
+            }
         }
     }
 
     // 跳转滑块验证码界面（验证通过后可继续浏览）
     public static void handleVerify(WebDriver webDriver, String expect) {
         int times = 0;
-        while(times < 1024 && !normalizeUrl(webDriver.getCurrentUrl(), expect).equals(webDriver.getCurrentUrl())) {
+        String not = null;
+        if (expect == null) {
+            not = webDriver.getCurrentUrl();
+        }
+        while(times < 1024 && !is(webDriver, expect, not)) {
             try {
                 Thread.sleep(3000);
                 if (times % 100 == 0) {
@@ -173,10 +185,11 @@ public abstract class AntiDianPingAntiCrawler {
         }
     }
 
-    public static void failIfVerify(Element element) {
-        if (DIANPING_VERIFY_TITLE.equals(element.getElementsByTag(TITLE_TAG).get(0).text())) {
-            log.error("jsoup请求被转向到认证界面：\n{}",element.text());
-            throw new VerifyStopException("fail as verify page display");
+    private static boolean is(WebDriver webDriver, String expect, String not) {
+        if (expect != null) {
+            return normalizeUrl(webDriver.getCurrentUrl(), expect).equals(webDriver.getCurrentUrl());
         }
+        return !normalizeUrl(webDriver.getCurrentUrl(), not).equals(webDriver.getCurrentUrl());
     }
+
 }

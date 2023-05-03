@@ -69,6 +69,10 @@ public abstract class Register {
         return obj;
     }
 
+    public static void destroyAllWindow() {
+        windowObjects.clear();
+    }
+
     public static void destroyWindow(String windowId) {
         windowObjects.remove(windowId);
     }
@@ -80,8 +84,7 @@ public abstract class Register {
         applicationObjects = new ConcurrentHashMap<>();
         applicationTypedObjects = new ConcurrentHashMap<>();
         windowObjects = new ConcurrentHashMap<>();
-        registerApplicationObject(null, new WebDriverStepHandlerFactory());
-        registerApplicationObject(EXECUTOR_WEBDRIVER, new WebDriverTaskExecutor(getApplicationScopeObject(null, WebDriverStepHandlerFactory.class)));
+        registerApplicationObject(EXECUTOR_WEBDRIVER, new WebDriverTaskExecutor());
         registerApplicationObject(EXECUTOR_JSOUP, new JsoupTaskExecutor());
 
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_AUTH_DOMAIN,
@@ -91,9 +94,7 @@ public abstract class Register {
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
                 AntiDianPingAntiCrawler::handleForbidden);
         JsoupStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
-                AntiDianPingAntiCrawler::failIfVerify);
-        JsoupStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
-                AntiDianPingAntiCrawler::failIfForbidden);
+                AntiDianPingAntiCrawler::failIfBlock);
     }
 
     /**
