@@ -131,8 +131,8 @@ public class JsoupStepHandlerFactory {
             Elements located = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
             if (step.multi()) {
                 context.addElements(step.id(), located.stream().toList());
-            } else {
-                context.addElement(step.id(), located.isEmpty() ? null : located.get(0));
+            } else if (!located.isEmpty()){
+                context.addElement(step.id(), located.get(0));
             }
         }
     }

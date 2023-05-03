@@ -288,7 +288,8 @@
               "id": "shop-site-more-info",
               "name": "定位更多信息",
               "type": "locator",
-              "selector": "#basic-info > a"
+              "selector": "#basic-info > a",
+              "hint": "某些分类不存在此元素"
             },
             {
               "name": "展开更多信息",
