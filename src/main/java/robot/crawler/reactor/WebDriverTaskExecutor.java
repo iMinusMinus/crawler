@@ -58,7 +58,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             configureOptions(options, settings);
             delegate = new EdgeDriver((EdgeOptions) options);
         } else {
-            throw new RuntimeException("当前仅支持chrome、edge，请联系开发者");
+            throw new IllegalArgumentException("当前仅支持chrome、edge，请联系开发者");
         }
         context = new Context<>(true);
         webDriver = new EventFiringDecorator(new WebDriverWindowsEventListener(context), new WebDriverErrorEventListener())
@@ -104,14 +104,13 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                         Optional.ofNullable(location.accuracy())));
             }
         }
-        // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
-        // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
-//        webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
         log.debug("webdriver[{}] set up success", webDriver);
     }
 
     /**
      * <a href="https://www.w3.org/TR/webdriver2/">W3C WebDriver</a>
+     * <a href="https://www.selenium.dev/documentation/webdriver/drivers/options/">Browser Options</a>
+     * <a href="https://peter.sh/experiments/chromium-command-line-switches/">args</a>
      * @param options
      * @param settings
      */
@@ -161,6 +160,8 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             if (type == null) {
                 throw new IllegalArgumentException("step missing type: " + step);
             }
+            // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
+            // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
             webDriverStepHandlerFactory.getHandler(webDriver, type).execute(context, step);
         }
         return context.getResult();
