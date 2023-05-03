@@ -1,13 +1,16 @@
 {
-  "id": "dianping-search-{keyword}",
-  "url": "https://www.dianping.com/",
+  "id": "dianping-search-${city}-${keyword}-${id}",
+  "url": "https://www.dianping.com/${city}",
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
     "browserName": "chrome",
     "device": {
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
     },
-    "arguments": [],
+    "arguments": ["--disable-images", "--lang=zh-CN", "--no-sandbox"],
+    "experimentalOptions": {
+      "excludeSwitches": ["enable-automation"]
+    },
     "hint": "if not change user-agent, visit dianping homepage get un-authorization"
   },
   "steps": [
@@ -37,6 +40,7 @@
       "id": "new-opened-tab-for-shop-list",
       "name": "点击搜索",
       "type": "action",
+      "shortcut": "import java.text.MessageFormat;import org.jsoup.nodes.Element; Element element = (Element) context.getElement(\"search-input\"); String urlFormat = element.attr(\"data-s-pattern\"); String city = element.attr(\"data-s-cityid\"); MessageFormat mf = new MessageFormat(urlFormat); String[] args = {city, \"0\"}; String url = mf.format(args) + \"${keyword}\"; ((Element) context.getElement(\"search-button\")).attr(\"href\", url); return false;",
       "actionName": "click",
       "target": "search-button"
     }, {
@@ -51,7 +55,7 @@
       "target": "new-opened-tab-for-shop-list",
       "name": "切换tab",
       "type": "action",
-      "hint": "url: https://www.dianping.com/search/keyword/1/0_%E9%98%B3%E6%98%A5%E9%9D%A2%20%E6%8E%A7%E6%B1%9F%E8%B7%AF%E5%BA%97",
+      "hint": "url: https://www.dianping.com/search/keyword/{cityId}/{subIndustry:0}_{keyword}",
       "actionName": "switch"
     }, {
       "id": "shopList",
@@ -243,7 +247,7 @@
               "outputPropertyName": "tasteScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "\"口味：-\".equals(arg) ? null : arg.split(\"：\")[1]"
+              "valueConverter": "\"口味：-\".equals(arg) ? null : arg.split(\"[：:]\")[1].strip()"
             },
             {
               "name": "获取环境评价",
@@ -252,7 +256,7 @@
               "outputPropertyName": "environmentScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "\"环境：-\".equals(arg) ? null : arg.split(\"：\")[1]"
+              "valueConverter": "\"环境：-\".equals(arg) ? null : arg.split(\"[：:]\")[1].strip()"
             },
             {
               "name": "获取服务评价",
@@ -261,7 +265,7 @@
               "outputPropertyName": "serviceScore",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "\"服务：-\".equals(arg) ? null : arg.split(\"：\")[1]"
+              "valueConverter": "\"服务：-\".equals(arg) ? null : arg.split(\"[：:]\")[1].strip()"
             },
             {
               "name": "获取地址",
@@ -278,7 +282,7 @@
               "outputPropertyName": "tel",
               "valueGetter": "text",
               "outputValueType": "string",
-              "valueConverter": "arg == null || arg.strip() == null || \"电话：\\n无\\n添加\".equals(arg) ? null : arg.split(\"：\")[1].strip()"
+              "valueConverter": "arg == null || arg.strip() == null || \"电话：\\n无\\n添加\".equals(arg) ? null : arg.split(\"[：:]\")[1].strip()"
             },
             {
               "id": "shop-site-more-info",
@@ -306,6 +310,7 @@
               "name": "定位评价标签",
               "type": "locator",
               "selector": "#summaryfilter-wrapper > div.comment-condition.J-comment-condition.Fix > div.content > span",
+              "hint": "部分分类（如美食、休闲娱乐）由ajax生成：https://www.dianping.com/ajax/json/shopDynamic/allReview?shopId=${shopId}&cityId=${cityId}&shopType=${channel}&tcv=&_token=&uuid=&platform=&partner=150&optimusCode=10&originUrl=https://www.dianping.com/shop/${shopId}",
               "multi": true
             },
             {
@@ -320,7 +325,8 @@
                   "type": "finder",
                   "selector": "a",
                   "valueGetter": "text",
-                  "outputValueType": "string"
+                  "outputValueType": "string",
+                  "hint": "$.summarys[*].summaryString($.summarys[*].summaryCount) <-- https://www.dianping.com/ajax/json/shopDynamic/allReview"
                 }
               ]
             },
@@ -331,7 +337,8 @@
               "outputPropertyName": "favorReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))",
+              "hint": "$.reviewCountGood <-- https://www.dianping.com/ajax/json/shopDynamic/allReview"
             },
             {
               "name": "获取中评数",
@@ -340,7 +347,8 @@
               "outputPropertyName": "neutralReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))",
+              "hint": "$.reviewCountCommon <-- https://www.dianping.com/ajax/json/shopDynamic/allReview"
             },
             {
               "name": "获取差评数",
@@ -349,7 +357,8 @@
               "outputPropertyName": "badReviews",
               "valueGetter": "text",
               "outputValueType": "number",
-              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))"
+              "valueConverter": "Integer.parseInt(arg.substring(1, arg.length() - 1))",
+              "hint": "$.reviewCountBad <-- https://www.dianping.com/ajax/json/shopDynamic/allReview"
             }
           ]
         },

@@ -1,5 +1,7 @@
 package robot.crawler.spec;
 
+import java.util.Map;
+
 /**
  * 任务设置
  * @param debug 开启debug模式会提供更多信息
@@ -14,5 +16,5 @@ package robot.crawler.spec;
  */
 public record TaskSettingDefinition(boolean debug, Location location, Device device, String browserName,
                                     String proxyType, String proxyValue, String proxyUser, String proxyPassword,
-                                    String[] arguments) {
+                                    String[] arguments, Map<String, Object> experimentalOptions, AndroidEmulator android) {
 }

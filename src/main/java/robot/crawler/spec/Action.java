@@ -3,6 +3,7 @@ package robot.crawler.spec;
 /**
  *
  * @param target Action的target可以是Locator产生，也可以是Action产生（如切换window/tab依赖click/submit）
+ * @param shortcut jsoup的等价webdriver捷径脚本
  * @param actionName @see Action.Type
  * @param cookies 登录后从浏览器复制出来，代码解析
  * @param cookieNames 需要删除的cookie名称
@@ -16,12 +17,13 @@ package robot.crawler.spec;
  * @param testValue 当actionName为wait时，传入停止等待测试值
  * @param ignoreNotApply 当不符合时是否忽略而不抛出异常
  */
-public record Action(String id, String name, String type, String target,
+public record Action(String id, String name, String type, String target, String shortcut,
                      String actionName,
                      String cookies, String[] cookieNames, /* cookie management */
                      String inputValue, /* input */
                      int deltaX, int deltaY, String scrollTo, /* scroll */
-                     long minWaitTime, long maxWaitTime, String expectedCondition, String testValue, boolean ignoreNotApply /* wait condition */) implements Step {
+                     long minWaitTime, long maxWaitTime, String expectedCondition, String testValue, /* wait condition */
+                     boolean ignoreNotApply) implements Step {
 
     public enum Type {
         ADD_COOKIES("+cookies"),
