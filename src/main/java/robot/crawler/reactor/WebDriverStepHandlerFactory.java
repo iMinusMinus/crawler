@@ -38,10 +38,6 @@ public class WebDriverStepHandlerFactory {
 
     private static final Map<String, BiConsumer<WebDriver, String>> anti = new ConcurrentHashMap<>();
 
-    public WebDriverStepHandlerFactory() {
-
-    }
-
     public static void registerAnti(String domain, BiConsumer<WebDriver, String> func) {
         anti.put(domain, func);
     }
@@ -87,7 +83,7 @@ public class WebDriverStepHandlerFactory {
 
     static class ActionHandler implements StepHandler<Context<WebElement>, Action, WebElement> {
 
-        private final WebDriver webDriver;
+        protected final WebDriver webDriver;
 
         private final Map<String, Function<String, ExpectedCondition<Boolean>>> expectedConditions = new HashMap<>();
 
@@ -124,10 +120,7 @@ public class WebDriverStepHandlerFactory {
             }
             switch (type) {
                 case ADD_COOKIES -> {
-                    String[] cookies = step.cookies().split("; ");
-                    for (String cookie : cookies) {
-                        webDriver.manage().addCookie(new Cookie.Builder(cookie.split("=")[0], cookie.split("=")[1]).build());
-                    }
+                    HttpSupport.handleCookies(step.cookies(), (k, v) -> webDriver.manage().addCookie(new Cookie.Builder(k, v).build()));
                 }
                 case DELETE_COOKIE -> {
                     for (String cookieName : step.cookieNames()) {
@@ -216,9 +209,9 @@ public class WebDriverStepHandlerFactory {
                     context.activeWindow(webDriver.getWindowHandle());
                     String expectUrl = urls.remove(step.target());
                     String currentUrl = webDriver.getCurrentUrl();
-                        Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
-                                .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
-                                .accept(webDriver, expectUrl);
+                    Optional.ofNullable(anti.get(getDomainOfUrl(currentUrl)))
+                            .orElse((driver, url) -> log.warn("No anti warranty for '{}'", url))
+                            .accept(webDriver, expectUrl);
                 }
                 case CLOSE -> webDriver.close();
                 case SCROLL -> {

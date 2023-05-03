@@ -3,29 +3,17 @@ package robot.crawler;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.fasterxml.jackson.databind.jsontype.TypeResolverBuilder;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.impl.TypeNameIdResolver;
-import com.fasterxml.jackson.databind.type.SimpleType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import robot.crawler.reactor.JsoupTaskExecutor;
 import robot.crawler.reactor.Register;
-import robot.crawler.reactor.TaskExecutorFactory;
-import robot.crawler.reactor.WebDriverTaskExecutor;
-import robot.crawler.spec.Action;
-import robot.crawler.spec.Finder;
 import robot.crawler.spec.ForceStopException;
-import robot.crawler.spec.Locator;
 import robot.crawler.spec.Progress;
 import robot.crawler.spec.Result;
-import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskDefinition;
 import robot.crawler.spec.TaskExecutor;
+import robot.crawler.spec.VerifyStopException;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,7 +28,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -66,13 +53,14 @@ public class Application {
 
     private static HttpClient httpClient;
 
+
     public static class Args {
 
         @Parameter(names = {"-r", "--read"}, required = true, description = "read job definition from: file:// or http[s]://")
         private String taskSource;
 
         @Parameter(names = {"-e", "--executor"}, description = "job executor type: webdriver, jsoup")
-        private String executorType = "webdriver";
+        private String executorType;
 
         @Parameter(names = {"-f", "--feedback"}, description = "progress feedback to: console, http[s]://")
         private String feedback = "console";
@@ -185,6 +173,7 @@ public class Application {
         long connectionTimeout = commandArgs.getConnectionTimeout();
         long readTimeout = commandArgs.getReadTimeout();
         int maxTimes = commandArgs.getFetchTaskMaxTimes();
+        String preferExecutor = commandArgs.getExecutorType();
 
         String executorId = System.getProperty("user.name") + "@" + resolveHostName();
 
@@ -194,6 +183,8 @@ public class Application {
 
         Register.initialize();
 
+        boolean disableJsoup = false;
+
         int times = 0;
 
         while(times < maxTimes) {
@@ -202,7 +193,9 @@ public class Application {
                 if (task == null) {
                     log.warn("no task to executor when polling {}", taskSource);
                 } else {
-                    TaskExecutor taskExecutor = TaskExecutorFactory.getTaskExecutor(commandArgs.getExecutorType());
+                    String executorType = preferExecutor != null ? preferExecutor :
+                            (disableJsoup ? Register.EXECUTOR_WEBDRIVER : Register.EXECUTOR_JSOUP);
+                    TaskExecutor taskExecutor = Register.getApplicationScopeObject(executorType, TaskExecutor.class);
 
                     feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
 
@@ -216,8 +209,16 @@ public class Application {
 
                     // wait async http request execute success
                     Thread.currentThread().join(readTimeout);
+
+                    disableJsoup = false;
                 }
-            }catch (ForceStopException fte) {
+            } catch (VerifyStopException vse) {
+                if (disableJsoup) {
+                    log.warn("jsoup request fail too many times! try not set -e or '--executor', and let program choose!");
+                    break;
+                }
+                disableJsoup = true;
+            } catch (ForceStopException fte) {
                 log.error("force stop, exit now!");
                 break;
             } catch (Exception ignore) {
@@ -230,6 +231,8 @@ public class Application {
                 break;
             }
         }
+
+        Register.destroy();
     }
 
     private static String resolveHostName() {

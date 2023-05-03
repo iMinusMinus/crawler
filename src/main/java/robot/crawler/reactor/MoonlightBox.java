@@ -1,6 +1,8 @@
 package robot.crawler.reactor;
 
+import org.jsoup.helper.W3CDom;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
@@ -8,6 +10,8 @@ import org.openqa.selenium.Point;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WrapsElement;
+import org.w3c.dom.NodeList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,47 +19,46 @@ import java.util.List;
 /**
  * 月光宝盒
  */
-public class MoonlightBox extends Element implements WebElement {
-
-    private final WebElement operationDelegate;
+public class MoonlightBox extends Element implements WebElement, WrapsElement {
 
     private final Element dom;
 
+    @SuppressWarnings({"unused"})
     public MoonlightBox(String tagName) {
         super(tagName);
-        operationDelegate = null;
         dom = null;
     }
 
-    public MoonlightBox(WebElement operationDelegate, Element dom) {
+    public MoonlightBox(Element dom) {
         super(dom.tagName());
         this.dom = dom;
-        this.operationDelegate = operationDelegate;
 
     }
 
-    WebElement getOperationDelegate() {
-        return operationDelegate;
+    // for actions retrieve origin WebElement
+    @Override
+    public WebElement getWrappedElement() {
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public void click() {
-        operationDelegate.click();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public void submit() {
-        operationDelegate.submit();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public void sendKeys(CharSequence... keysToSend) {
-        operationDelegate.sendKeys(keysToSend);
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public void clear() {
-        operationDelegate.clear();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
@@ -70,12 +73,12 @@ public class MoonlightBox extends Element implements WebElement {
 
     @Override
     public boolean isSelected() {
-        return operationDelegate.isSelected();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public boolean isEnabled() {
-        return operationDelegate.isEnabled();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
@@ -85,7 +88,6 @@ public class MoonlightBox extends Element implements WebElement {
 
     @Override
     public List<WebElement> findElements(By by) {
-        List<WebElement> elements = by.findElements(operationDelegate);
         List<Element> domElements;
         if (by instanceof By.ByXPath byXpath) {
             domElements = dom.selectXpath((String) byXpath.getRemoteParameters().value());
@@ -94,10 +96,9 @@ public class MoonlightBox extends Element implements WebElement {
         } else {
             throw new RuntimeException("unsupported selector");
         }
-        assert  elements.size() == domElements.size();
         List<WebElement> container = new ArrayList<>();
-        for (int i = 0; i < elements.size(); i++) {
-            container.add(new MoonlightBox(elements.get(i), domElements.get(i)));
+        for (Element domElement : domElements) {
+            container.add(new MoonlightBox(domElement));
         }
         return container;
     }
@@ -112,36 +113,55 @@ public class MoonlightBox extends Element implements WebElement {
         } else {
             throw new RuntimeException("unsupported selector");
         }
-        return new MoonlightBox(by.findElement(operationDelegate), domElement);
+        return new MoonlightBox(domElement);
     }
 
     @Override
     public boolean isDisplayed() {
-        return operationDelegate.isDisplayed();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public Point getLocation() {
-        return operationDelegate.getLocation();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public Dimension getSize() {
-        return operationDelegate.getSize();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public Rectangle getRect() {
-        return operationDelegate.getRect();
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public String getCssValue(String propertyName) {
-        return operationDelegate.getCssValue(propertyName);
+        throw new UnsupportedOperationException("I'm not real WebElement");
     }
 
     @Override
     public <X> X getScreenshotAs(OutputType<X> target) throws WebDriverException {
-        return operationDelegate.getScreenshotAs(target);
+        throw new UnsupportedOperationException("I'm not real WebElement");
+    }
+
+
+
+    /* for selector retrieve dom elements */
+
+    @Override
+    public Elements selectXpath(String xpath) {
+        W3CDom w3c = (new W3CDom()).namespaceAware(false);
+        org.w3c.dom.Document wDoc = w3c.fromJsoup(dom);
+        org.w3c.dom.Node contextNode = w3c.contextNode(wDoc);
+        NodeList nodeList = w3c.selectXpath(xpath, contextNode);
+        return new Elements(w3c.sourceNodes(nodeList, Element.class));
+    }
+
+    // cssQuery must compatible with browser, sample: #id1 > tag.class1.class2 > tag1[attrKey='attrValue'] > tag2:pseudo-class + tag2
+    @Override
+    public Elements select(String cssQuery) {
+        return dom.select(cssQuery);
     }
 }

@@ -15,9 +15,9 @@ import java.util.Map;
 
 public class JsoupTaskExecutor implements TaskExecutor {
 
-    private Connection connection;
+    protected Connection connection;
 
-    private Context<Element> context;
+    protected Context<Element> context;
 
     @Override
     public void setUp(TaskSettingDefinition settings) {
@@ -49,7 +49,9 @@ public class JsoupTaskExecutor implements TaskExecutor {
         for (Step step : steps) {
             Step.Type type = Step.Type.getInstance(step.type());
             assert type != null;
-            JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, step);
+            JsoupStepHandlerFactory stepHandlerFactory = Register.registerIfGetWindowObjectNotExist(context.currentWindow(), JsoupStepHandlerFactory.class,
+                    ()-> new JsoupStepHandlerFactory(connection, (Document) context.currentElement(context.currentWindow())));
+            stepHandlerFactory.getHandler(type).execute(context, step);
         }
         context.restoreElement(url);
         return context.getResult();

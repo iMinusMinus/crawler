@@ -8,8 +8,10 @@ import robot.crawler.anti.AntiDianPingAntiCrawler;
 import robot.crawler.spec.Action;
 import robot.crawler.spec.Box;
 import robot.crawler.spec.Finder;
+import robot.crawler.spec.ForceStopException;
 import robot.crawler.spec.Locator;
 import robot.crawler.spec.Step;
+import robot.crawler.spec.VerifyStopException;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -21,9 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-public abstract class JsoupStepHandlerFactory {
-
-    private static final Map<Step.Type, StepHandler<Context<Element>, Step, Element>> handlers = new ConcurrentHashMap<>();
+public class JsoupStepHandlerFactory {
 
     private static final Map<String, Consumer<Element>> anti = new ConcurrentHashMap<>();
 
@@ -31,22 +31,48 @@ public abstract class JsoupStepHandlerFactory {
         anti.put(domain, func);
     }
 
-    public static StepHandler<Context<Element>, Step, Element> getHandler(Connection connection, Document doc, Step.Type type) {
-        return handlers.computeIfAbsent(type, (x) -> {
+    private final Connection connection;
+
+    private final Document doc;
+
+    private final BoxHandler boxHandler;
+
+    private final LocatorHandler locatorHandler;
+
+    private final ActionHandler actionHandler;
+
+    private final FinderHandler finderHandler;
+
+    public JsoupStepHandlerFactory(Connection connection, Document doc) {
+        this.connection = connection;
+        this.doc = doc;
+        boxHandler = new BoxHandler();
+        locatorHandler = new LocatorHandler();
+        actionHandler = new ActionHandler();
+        finderHandler = new FinderHandler();
+    }
+
+    public StepHandler<Context<Element>, Step, Element> getHandler(Step.Type type) {
             final StepHandler stepHandler;
             switch (type) {
-                case BOX -> stepHandler = new BoxHandler(connection, doc);
-                case LOCATOR -> stepHandler = new LocatorHandler(connection, doc);
-                case ACTION -> stepHandler = new ActionHandler(connection, doc);
-                case FINDER -> stepHandler = new FinderHandler(doc);
+                case BOX -> stepHandler = boxHandler;
+                case LOCATOR -> stepHandler = locatorHandler;
+                case ACTION -> stepHandler = actionHandler;
+                case FINDER -> stepHandler = finderHandler;
                 default -> throw new IllegalArgumentException("unknown step type:" + type);
             }
             return stepHandler;
-        });
     }
 
-    private record BoxHandler(Connection connection,
-                              Document doc) implements StepHandler<Context<Element>, Box, Element> {
+    private class BoxHandler implements StepHandler<Context<Element>, Box, Element> {
+
+        @Override
+        public boolean beforeHandle(Context<Element> context, Box step) {
+            if (step.hook() != null && step.hook().doBefore() != null) {
+                return (Boolean) JsoupStepHookExecutor.execute(connection, doc, context, step.hook().doBefore());
+            }
+            return true;
+        }
 
         @Override
         public void handle(Context<Element> context, Box step) {
@@ -75,7 +101,10 @@ public abstract class JsoupStepHandlerFactory {
                 for (Step s : step.steps()) {
                     Step.Type type = Step.Type.getInstance(s.type());
                     assert type != null;
-                    JsoupStepHandlerFactory.getHandler(connection, doc, type).execute(context, s);
+                    // always push document first! but after close stack top may be not document!
+                    JsoupStepHandlerFactory stepHandlerFactory = Register.registerIfGetWindowObjectNotExist(context.currentWindow(), JsoupStepHandlerFactory.class,
+                            ()-> new JsoupStepHandlerFactory(connection, (Document) context.currentElement(context.currentWindow())));
+                    stepHandlerFactory.getHandler(type).execute(context, s);
                 }
                 if (!step.noPushToContext()) {
                     context.restoreElement(context.currentWindow());
@@ -88,10 +117,10 @@ public abstract class JsoupStepHandlerFactory {
                 context.popResult();
             }
         }
+
     }
 
-    private record LocatorHandler(Connection connection,
-                                  Document doc) implements StepHandler<Context<Element>, Locator, Element> {
+    private class LocatorHandler implements StepHandler<Context<Element>, Locator, Element> {
 
         @Override
         public void handle(Context<Element> context, Locator step) {
@@ -103,34 +132,38 @@ public abstract class JsoupStepHandlerFactory {
             if (step.multi()) {
                 context.addElements(step.id(), located.stream().toList());
             } else {
-                context.addElement(step.id(), located.get(0));
+                context.addElement(step.id(), located.isEmpty() ? null : located.get(0));
             }
         }
     }
 
-    private record ActionHandler(Connection connection,
-                                 Document doc) implements StepHandler<Context<Element>, Action, Element> {
+    private class ActionHandler implements StepHandler<Context<Element>, Action, Element> {
 
         @Override
         public void handle(Context<Element> context, Action step) {
+            if (step.shortcut() != null) {
+                boolean replacement = (Boolean) JsoupStepHookExecutor.execute(connection, context, step.shortcut());
+                if (replacement) {
+                    return;
+                }
+            }
             Action.Type type = Action.Type.getInstance(step.actionName());
             assert type != null;
             switch (type) {
                 case ADD_COOKIES -> {
-                    String[] cookies = step.cookies().split("; ");
-                    for (String cookie : cookies) {
-                        connection.cookie(cookie.split("=")[0], cookie.split("=")[1]);
-                    }
+                    HttpSupport.handleCookies(step.cookies(), connection::cookie);
                 }
                 case NAVIGATE -> {
                     try {
                         URL url = new URL(step.target());
-                        Element newContent = connection.url(url).get();
+                        Document newContent = connection.url(url).get();
                         Optional.ofNullable(anti.get(url.getHost()))
                                 .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
                                 .accept(newContent);
                         context.activeWindow(step.target());
                         context.snapshotElement(context.currentWindow(), newContent);
+                    } catch (ForceStopException | VerifyStopException fse) {
+                        throw fse;
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -142,18 +175,20 @@ public abstract class JsoupStepHandlerFactory {
                         String target = AntiDianPingAntiCrawler.normalizeUrl(context.currentWindow(), href);
                         try {
                             URL url = new URL(target);
-                            Element newContent = connection.url(target).get();
+                            Document newContent = connection.url(target).get();
                             Optional.ofNullable(anti.get(url.getHost()))
                                     .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
                                     .accept(newContent);
                             context.activeWindow(target);
                             context.snapshotElement(context.currentWindow(), newContent);
+                        } catch (ForceStopException | VerifyStopException fse) {
+                            throw fse;
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
                     }
                 }
-                case SCREENSHOT, SCROLL, SWITCH, WAIT -> {
+                case INPUT, SCREENSHOT, SCROLL, SWITCH, WAIT -> {
                     // NO-OP
                 }
                 case CLOSE -> context.destroyWindow();
@@ -162,15 +197,9 @@ public abstract class JsoupStepHandlerFactory {
         }
     }
 
-    static class FinderHandler implements StepHandler<Context<Element>, Finder, Element> {
+    private class FinderHandler implements StepHandler<Context<Element>, Finder, Element> {
 
         private static final String RAW_VALUE_PROPERTY_NAME_FMT = "__%1$s__";
-
-        private final Element doc;
-
-        public FinderHandler(Document doc) {
-            this.doc = doc;
-        }
 
         @Override
         public void handle(Context<Element> context, Finder step) {
@@ -181,7 +210,7 @@ public abstract class JsoupStepHandlerFactory {
             Element target;
             if (step.xpath() != null || step.selector() != null) {
                 Elements elements = step.xpath() != null ? scope.selectXpath(step.xpath()) : scope.select(step.selector());
-                target = elements.get(0);
+                target = elements.isEmpty() ? null : elements.get(0);
             } else {
                 target = scope;
             }
@@ -190,7 +219,12 @@ public abstract class JsoupStepHandlerFactory {
             }
             Finder.ValueGetterType type = Finder.ValueGetterType.getInstance(step.valueGetter());
             assert type != null;
-            String raw = type == Finder.ValueGetterType.TEXT ? target.text() : target.attr(step.attributeKey());
+            String raw;
+            if (target == null) {
+                raw = null;
+            } else {
+                raw = type == Finder.ValueGetterType.TEXT ? target.text() : target.attr(step.attributeKey());
+            }
             Object value = raw;
             if (step.valueConverter() != null) {
                 value = ConverterFactory.getConverter(step.valueConverter()).convert(raw);

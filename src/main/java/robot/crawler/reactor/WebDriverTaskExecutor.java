@@ -36,6 +36,10 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     protected WebDriverStepHandlerFactory webDriverStepHandlerFactory;
 
+    public WebDriverTaskExecutor(WebDriverStepHandlerFactory webDriverStepHandlerFactory) {
+        this.webDriverStepHandlerFactory = webDriverStepHandlerFactory;
+    }
+
     private boolean debug;
 
     @Override
@@ -102,10 +106,15 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         }
         // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
         // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
-        webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
+//        webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
         log.debug("webdriver[{}] set up success", webDriver);
     }
 
+    /**
+     * <a href="https://www.w3.org/TR/webdriver2/">W3C WebDriver</a>
+     * @param options
+     * @param settings
+     */
     private void configureOptions(AbstractDriverOptions options, TaskSettingDefinition settings) {
         Proxy proxy = new Proxy();
         if (java.net.Proxy.Type.HTTP.name().equalsIgnoreCase(settings.proxyType())) {
@@ -120,9 +129,26 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         if (proxy.getProxyType() != Proxy.ProxyType.UNSPECIFIED) {
             options.setProxy(proxy);
         }
-        if (options instanceof ChromiumOptions chromiumOptions
-                && settings.arguments() != null && settings.arguments().length > 0) {
-            chromiumOptions.addArguments(settings.arguments());
+        if (options instanceof ChromiumOptions chromiumOptions) {
+            if (settings.arguments() != null && settings.arguments().length > 0) {
+                chromiumOptions.addArguments(settings.arguments());
+            }
+            if (settings.experimentalOptions() != null && !settings.experimentalOptions().isEmpty()) {
+                for (Map.Entry<String, Object> entry : settings.experimentalOptions().entrySet()) {
+                    chromiumOptions.setExperimentalOption(entry.getKey(), entry.getValue());
+                }
+            }
+            if (settings.android() != null) {
+                Optional.ofNullable(settings.android().packageName()).ifPresent(p -> chromiumOptions.setAndroidPackage(p));
+                Optional.ofNullable(settings.android().activityName()).ifPresent(a -> chromiumOptions.setAndroidActivity(a));
+                Optional.ofNullable(settings.android().serial()).ifPresent(s -> chromiumOptions.setAndroidDeviceSerialNumber(s));
+                Optional.ofNullable(settings.android().attachToRunningApp()).ifPresent(r -> chromiumOptions.setUseRunningAndroidApp(r));
+                Optional.ofNullable(settings.android().options()).ifPresent(m -> {
+                    for (Map.Entry<String, Object> e : m.entrySet()) {
+                        chromiumOptions.setCapability(e.getKey(), e.getValue());
+                    }
+                });
+            }
         }
     }
 
