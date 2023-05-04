@@ -110,8 +110,8 @@ public class WebDriverTaskExecutor implements TaskExecutor {
      * <a href="https://www.w3.org/TR/webdriver2/">W3C WebDriver</a>
      * <a href="https://www.selenium.dev/documentation/webdriver/drivers/options/">Browser Options</a>
      * <a href="https://peter.sh/experiments/chromium-command-line-switches/">args</a>
-     * @param options
-     * @param settings
+     * @param options webdriver options
+     * @param settings user setting for webdriver options
      */
     private void configureOptions(AbstractDriverOptions options, TaskSettingDefinition settings) {
         Proxy proxy = new Proxy();
@@ -137,10 +137,10 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                 }
             }
             if (settings.android() != null) {
-                Optional.ofNullable(settings.android().packageName()).ifPresent(p -> chromiumOptions.setAndroidPackage(p));
-                Optional.ofNullable(settings.android().activityName()).ifPresent(a -> chromiumOptions.setAndroidActivity(a));
-                Optional.ofNullable(settings.android().serial()).ifPresent(s -> chromiumOptions.setAndroidDeviceSerialNumber(s));
-                Optional.ofNullable(settings.android().attachToRunningApp()).ifPresent(r -> chromiumOptions.setUseRunningAndroidApp(r));
+                Optional.ofNullable(settings.android().packageName()).ifPresent(chromiumOptions::setAndroidPackage);
+                Optional.ofNullable(settings.android().activityName()).ifPresent(chromiumOptions::setAndroidActivity);
+                Optional.ofNullable(settings.android().serial()).ifPresent(chromiumOptions::setAndroidDeviceSerialNumber);
+                Optional.ofNullable(settings.android().attachToRunningApp()).ifPresent(chromiumOptions::setUseRunningAndroidApp);
                 Optional.ofNullable(settings.android().options()).ifPresent(m -> {
                     for (Map.Entry<String, Object> e : m.entrySet()) {
                         chromiumOptions.setCapability(e.getKey(), e.getValue());
@@ -169,6 +169,9 @@ public class WebDriverTaskExecutor implements TaskExecutor {
         if (e instanceof ForceStopException) {
             throw e;
         }
+        if (webDriver == null) {
+            return Collections.emptyList();
+        }
         try {
             if (debug) {
                 log.info("{}", webDriver.getPageSource());
@@ -183,7 +186,7 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     @Override
     public String currentUrl() {
-        return webDriver.getCurrentUrl();
+        return Optional.ofNullable(webDriver).map(WebDriver::getCurrentUrl).orElse(null);
     }
 
     @Override

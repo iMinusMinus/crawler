@@ -13,6 +13,7 @@ import robot.crawler.spec.Progress;
 import robot.crawler.spec.Result;
 import robot.crawler.spec.TaskDefinition;
 import robot.crawler.spec.TaskExecutor;
+import robot.crawler.spec.TaskSettingDefinition;
 import robot.crawler.spec.VerifyStopException;
 
 import java.io.File;
@@ -46,6 +47,10 @@ public class Application {
     private static final String APPLICATION_JSON_VALUE = "application/json;charset=UTF-8";
 
     private static final String JSON_SUFFIX = ".json";
+
+    private static final String APPLICATION_JSON_PROP_KEY = "crawler.application.json";
+
+    private static final String APPLICATION_JSON_ENV_KEY = "CRAWLER_APPLICATION_JSON";
 
     private static final Set<String> PROCESSED = new HashSet<>();
 
@@ -81,6 +86,7 @@ public class Application {
             return taskSource;
         }
 
+        @SuppressWarnings({"unused"})
         public void setTaskSource(String taskSource) {
             this.taskSource = taskSource;
         }
@@ -89,6 +95,7 @@ public class Application {
             return executorType;
         }
 
+        @SuppressWarnings({"unused"})
         public void setExecutorType(String executorType) {
             this.executorType = executorType;
         }
@@ -97,6 +104,7 @@ public class Application {
             return feedback;
         }
 
+        @SuppressWarnings({"unused"})
         public void setFeedback(String feedback) {
             this.feedback = feedback;
         }
@@ -105,6 +113,7 @@ public class Application {
             return outputDestination;
         }
 
+        @SuppressWarnings({"unused"})
         public void setOutputDestination(String outputDestination) {
             this.outputDestination = outputDestination;
         }
@@ -113,6 +122,7 @@ public class Application {
             return connectionTimeout;
         }
 
+        @SuppressWarnings({"unused"})
         public void setConnectionTimeout(long connectionTimeout) {
             this.connectionTimeout = connectionTimeout;
         }
@@ -121,6 +131,7 @@ public class Application {
             return readTimeout;
         }
 
+        @SuppressWarnings({"unused"})
         public void setReadTimeout(long readTimeout) {
             this.readTimeout = readTimeout;
         }
@@ -129,6 +140,7 @@ public class Application {
             return fetchTaskMaxTimes;
         }
 
+        @SuppressWarnings({"unused"})
         public void setFetchTaskMaxTimes(int fetchTaskMaxTimes) {
             this.fetchTaskMaxTimes = fetchTaskMaxTimes;
         }
@@ -163,6 +175,19 @@ public class Application {
 
     }
 
+    private static TaskSettingDefinition nodeSettings() {
+        String json = System.getProperty(APPLICATION_JSON_PROP_KEY, System.getenv(APPLICATION_JSON_ENV_KEY));
+        if (json == null) {
+            return null;
+        }
+        try {
+            return om.readValue(json, TaskSettingDefinition.class);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return null;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         Args commandArgs = new Args();
         JCommander.newBuilder().addObject(commandArgs).build().parse(args);
@@ -179,39 +204,52 @@ public class Application {
 
         configureObjectMapper();
 
+        TaskSettingDefinition defaultNodeSettings = nodeSettings();
+
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(connectionTimeout)).build();
 
         Register.initialize();
 
         boolean disableJsoup = false;
+        TaskDefinition retryTask = null;
 
         int times = 0;
 
         while(times < maxTimes) {
             try {
-                TaskDefinition task = pollTask(taskSource);
-                if (task == null) {
+                TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource);
+                if (taskDefinition == null) {
                     log.warn("no task to executor when polling {}", taskSource);
-                } else {
-                    String executorType = preferExecutor != null ? preferExecutor :
-                            (disableJsoup ? Register.EXECUTOR_WEBDRIVER : Register.EXECUTOR_JSOUP);
-                    TaskExecutor taskExecutor = Register.getApplicationScopeObject(executorType, TaskExecutor.class);
-
-                    feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
-
-                    Result crawResult = taskExecutor.execute(task);
-
-                    feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
-
-                    pushResult(destination, crawResult, readTimeout);
-
-                    feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
-
-                    // wait async http request execute success
-                    Thread.currentThread().join(readTimeout);
-
-                    disableJsoup = false;
+                    continue;
                 }
+                TaskDefinition task = defaultNodeSettings == null ?
+                        taskDefinition :
+                        new TaskDefinition(taskDefinition.id(), taskDefinition.name(), taskDefinition.url(),
+                                taskDefinition.version(), defaultNodeSettings, taskDefinition.steps());
+                retryTask = task;
+
+                String executorType = preferExecutor != null ? preferExecutor :
+                        (disableJsoup ? Register.EXECUTOR_WEBDRIVER : Register.EXECUTOR_JSOUP);
+                TaskExecutor taskExecutor = Register.getApplicationScopeObject(executorType, TaskExecutor.class);
+
+                feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
+
+                Result crawResult = taskExecutor.execute(task);
+
+                feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
+
+                pushResult(destination, crawResult, readTimeout);
+
+                feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
+
+                // wait async http request execute success
+                Thread.currentThread().join(readTimeout);
+
+                disableJsoup = false;
+                if (!crawResult.corrupt()) {
+                    retryTask = null;
+                }
+
             } catch (VerifyStopException vse) {
                 if (disableJsoup) {
                     log.warn("jsoup request fail too many times! try not set -e or '--executor', and let program choose!");
@@ -260,7 +298,7 @@ public class Application {
             String srcFile = source;
             if (src.isDirectory()) {
                 File[] files = src.listFiles(f -> f.getName().endsWith(JSON_SUFFIX) && !PROCESSED.contains(f.getName()));
-                if (files.length == 0) {
+                if (files == null || files.length == 0) {
                     return null;
                 }
                 PROCESSED.add(files[0].getName());
@@ -274,10 +312,12 @@ public class Application {
                     .GET()
                     .build();
             HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200) {
-                log.error("poll task error: {}", new String(response.body().readAllBytes(), StandardCharsets.UTF_8));
+            try (InputStream body = response.body()) {
+                if (response.statusCode() != 200) {
+                    log.error("poll task error: {}", new String(body.readAllBytes(), StandardCharsets.UTF_8));
+                }
+                return om.readValue(body, TaskDefinition.class);
             }
-            return om.readValue(response.body(), TaskDefinition.class);
         }
         return null;
     }

@@ -71,7 +71,7 @@ public class JsoupTaskExecutor implements TaskExecutor {
         }
         log.error(e.getMessage(), e);
         try {
-            if (debug) {
+            if (debug && doc != null) {
                 log.info("{}", doc.html());
             }
             return context.getResult();
