@@ -30,19 +30,51 @@
 
       Pick up webdriver version best match browser version, unzip it and make it executable.
       
-      __For Chrome, visit chrome webdriver__
+      For Chrome, visit [chrome webdriver](https://chromedriver.chromium.org/)
 
-      __For Edge, visit msedge webdriver__
+      For Edge, visit [msedge webdriver](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
 
    2. write your task definition json or pick one from project test resources
 
    3. add program argument and vm options before you run
 
-      __For read input task definition, use -r file://localFilePath or -r http://remoteHost:port/path__
-      __For submit result, use -w file://localResultPath or -r https://remoteHost:port/endpoint__
+      For specify webdriver location, add vm option.
 
-      __For specify webdriver location, add vm option. For chrome: webdriver.chrome.driver; For msedge: webdriver.edge.driver__
-      __For force use JDK httpclient, add vm option: webdriver.http.factory=jdk-http-client __
+        For chrome: -Dwebdriver.chrome.driver; 
+
+        For msedge: -Dwebdriver.edge.driver.
+
+      For force use JDK httpclient, add vm option: -Dwebdriver.http.factory=jdk-http-client
+
+      For specify running node webdriver option, add vm option -Dcrawler.application.json or add os environment variable CRAWLER_APPLICATION_JSON.
+   
+      For read input task definition, add argument: -r or --read, file:// or http:// or https:// are supported.
+
+      For submit result, use -w or --write, file:// or http:// or https:// are supported.
+
+   4. troubleshooting
+
+      + Invalid Status code=403 text=Forbidden
+
+        Chrome Driver started successfully but WebSocket listener error as chrome version vary:
+
+        ```shell
+        -Dcrawler.application.json="{\"arguments\":[\"--remote-allow-origins=*\"]}"
+        ```
+
+      + Unknown HttpClient factory jdk-http-client
+
+        maven-assembly-plugin package all classes into one fat jar, SPI implementation files under 'META-INF/services' directory conflict.
+
+        put selenium-http-jdk-client*.jar into classpath like 'java -Dwebdriver.http.factory=jdk-http-client -cp selenium-http-jdk-client*.jar -jar crawler*.jar -r file://local.json -w file://result.json'.
+
+      + Could not start a new session. Response code 500. Message: unknown error: Chrome failed to start: crashed
+
+        try chrome option '--no-sandbox' as below:
+
+        ```shell
+        -Dcrawler.application.json="{\"arguments\":[\"--no-sandbox\"]}"
+        ```
 
 ## 免责声明
 
