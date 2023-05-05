@@ -33,8 +33,6 @@ public abstract class AntiDianPingAntiCrawler {
 
     public static final String DIANPING_LOGIN_DOMAIN = "account.dianping.com";
 
-    public static final String TITLE_TAG = "title";
-
     public static final String DIANPING_VERIFY_TITLE = "验证中心";
 
     public static final String DIANPING_LOGIN_INVALID_TITLE = "大众点评网";
@@ -172,11 +170,14 @@ public abstract class AntiDianPingAntiCrawler {
         if (expect == null) {
             not = webDriver.getCurrentUrl();
         }
-        while(times < 1024 && !is(webDriver, expect, not)) {
+        long waitTimeInMilliseconds = 1800000; // XXX how long?
+        long sleepTimeInMilliseconds = 6000;
+        long notifyIntervalInMilliseconds = 5 * 60 * 1000;
+        while(times < (waitTimeInMilliseconds / sleepTimeInMilliseconds) && !is(webDriver, expect, not)) {
             try {
-                Thread.sleep(3000);
-                if (times % 100 == 0) {
-                    log.info("请通过滑块验证，程序才能继续执行");
+                Thread.sleep(sleepTimeInMilliseconds);
+                if (times % (notifyIntervalInMilliseconds / sleepTimeInMilliseconds) == 0) {
+                    log.warn("请通过滑块验证，程序才能继续执行");
                 }
             } catch (InterruptedException ie) {
                 Thread.interrupted();

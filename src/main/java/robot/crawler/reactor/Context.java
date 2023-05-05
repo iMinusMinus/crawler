@@ -116,12 +116,10 @@ public class Context<E> {
     }
 
     public void pushResult(Object object) {
-        log.debug("push++, current type: {}", object != null ? object.getClass(): null);
         result.push(object);
     }
 
     public Object popResult() {
-        log.debug("pop++");
         return result.pop();
     }
 
@@ -129,7 +127,6 @@ public class Context<E> {
         if (!result.isEmpty()) {
             throw new RuntimeException("result has been initialized!");
         }
-        log.debug("push root list");
         result.push(data);
     }
 
