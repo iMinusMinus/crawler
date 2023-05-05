@@ -39,6 +39,8 @@ public abstract class AntiDianPingAntiCrawler {
 
     public static final String FORBIDDEN_TEXT = "403 Forbidden";
 
+    public static final String SERVER_ERROR_TEXT = "HTTP ERROR 500";
+
     public static final String SIGN = "sign";
 
     private static final String TCV_PROPERTY = "textCssVersion";
@@ -134,7 +136,7 @@ public abstract class AntiDianPingAntiCrawler {
                 int write = deflater.deflate(buffer);
                 baos.write(buffer, 0, write);
             }
-            result = baos.toByteArray();;
+            result = baos.toByteArray();
         } catch (Exception e){
             log.error(e.getMessage(), e);
         }
@@ -147,6 +149,9 @@ public abstract class AntiDianPingAntiCrawler {
         if (FORBIDDEN_TEXT.equals(webDriver.getTitle())) {
             log.error("exit program, current page is:\n{}", webDriver.getPageSource());
             throw new ForceStopException(FORBIDDEN_TEXT);
+        } else if (DIANPING_HOST.equals(webDriver.getTitle())) {
+            log.error("exit program, current page is:\n{}", webDriver.getPageSource());
+            throw new ForceStopException(SERVER_ERROR_TEXT);
         }
     }
 
