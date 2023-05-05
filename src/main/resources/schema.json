@@ -5,9 +5,15 @@
     "id": {
       "type": "string"
     },
+    "name": {
+      "type": "string"
+    },
     "url": {
       "type": "string",
       "hint": "if set cookie, please specify url(domain) first"
+    },
+    "version": {
+      "type": "string"
     },
     "settings": {
       "type": "object",
@@ -97,7 +103,38 @@
             "type": "string",
             "pattern": "^--[a-zA-Z0-9]+=?[a-zA-Z0-9]+$"
           },
-          "examples": ["--headless=new"]
+          "examples": ["--headless=new", "--no-sandbox", "--remote-allow-origins=*"]
+        },
+        "experimentalOptions": {
+          "type": "object",
+          "properties": {
+            "excludeSwitches": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "android": {
+          "type": "object",
+          "properties": {
+            "packageName": {
+              "type": "string"
+            },
+            "activityName": {
+              "type": "string"
+            },
+            "serial": {
+              "type": "string"
+            },
+            "attachToRunningApp": {
+              "type": "boolean"
+            },
+            "options": {
+              "type": "object"
+            }
+          }
         }
       }
     },
