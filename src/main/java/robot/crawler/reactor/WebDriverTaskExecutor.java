@@ -166,17 +166,14 @@ public class WebDriverTaskExecutor implements TaskExecutor {
 
     @Override
     public List<Map<String, Object>> doHandleException(RuntimeException e) {
-        if (e instanceof ForceStopException) {
+        if (e instanceof ForceStopException || webDriver == null) {
             throw e;
         }
-        if (webDriver == null) {
-            return Collections.emptyList();
-        }
+        log.error(e.getMessage(), e);
         try {
             if (debug) {
                 log.info("{}", webDriver.getPageSource());
             }
-            log.error(e.getMessage(), e);
             return context.getResult();
         } catch (Exception ignore) {
             log.warn(ignore.getMessage(), ignore);

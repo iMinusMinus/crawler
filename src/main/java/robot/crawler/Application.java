@@ -205,6 +205,7 @@ public class Application {
         configureObjectMapper();
 
         TaskSettingDefinition defaultNodeSettings = nodeSettings();
+        log.debug("node settings: {}", defaultNodeSettings);
 
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(connectionTimeout)).build();
 
@@ -228,6 +229,7 @@ public class Application {
                                 taskDefinition.version(), defaultNodeSettings, taskDefinition.steps());
                 retryTask = task;
 
+                // TODO choose strategy depends on user specify or statistics
                 String executorType = preferExecutor != null ? preferExecutor :
                         (disableJsoup ? Register.EXECUTOR_WEBDRIVER : Register.EXECUTOR_JSOUP);
                 TaskExecutor taskExecutor = Register.getApplicationScopeObject(executorType, TaskExecutor.class);
@@ -353,7 +355,7 @@ public class Application {
                     .timeout(Duration.ofMillis(readTimeout))
                     .build();
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                    .thenAccept(x -> log.debug("submit result to [{}] and response status: {}", destination, x.statusCode()));
+                    .thenAccept(x -> log.info("submit result to [{}] and response status: {}", destination, x.statusCode()));
         }
     }
 

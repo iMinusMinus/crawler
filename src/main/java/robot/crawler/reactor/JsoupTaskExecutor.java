@@ -15,6 +15,7 @@ import java.net.Proxy;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class JsoupTaskExecutor implements TaskExecutor {
 
@@ -66,13 +67,14 @@ public class JsoupTaskExecutor implements TaskExecutor {
 
     @Override
     public List<Map<String, Object>> doHandleException(RuntimeException e) {
-        if (e instanceof ForceStopException || e instanceof VerifyStopException) {
+        if (e instanceof ForceStopException || e instanceof VerifyStopException || connection == null) {
             throw e;
         }
         log.error(e.getMessage(), e);
         try {
-            if (debug && doc != null) {
-                log.info("{}", doc.html());
+            if (debug) {
+                log.info("{}", Optional.ofNullable(context.currentElement(context.currentWindow()))
+                        .map(Element::html).orElse(null));
             }
             return context.getResult();
         } catch (Exception ignore) {
@@ -82,6 +84,11 @@ public class JsoupTaskExecutor implements TaskExecutor {
     }
 
     @Override
+    public String currentUrl() {
+        return Optional.ofNullable(context).map(Context::currentWindow).orElse(null);
+    }
+
+        @Override
     public void tearDown() {
         connection = null;
         Register.destroyAllWindow();
