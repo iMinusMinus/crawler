@@ -189,6 +189,9 @@ public abstract class AntiDianPingAntiCrawler {
             }
             times++;
         }
+        if (times >= (waitTimeInMilliseconds / sleepTimeInMilliseconds)) {
+            throw new ForceStopException("waiting too long for verification, exit now");
+        }
     }
 
     private static boolean is(WebDriver webDriver, String expect, String not) {

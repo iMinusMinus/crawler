@@ -10,6 +10,7 @@ import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
 import robot.crawler.spec.VerifyStopException;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.util.Collections;
@@ -31,6 +32,7 @@ public class JsoupTaskExecutor implements TaskExecutor {
     public void setUp(TaskSettingDefinition settings) {
         debug = settings.debug();
         connection = new HttpConnection();
+        connection.ignoreHttpErrors(true);
         if (settings.device() != null && settings.device().userAgent() != null) {
             connection.userAgent(settings.device().userAgent());
         }
@@ -48,9 +50,14 @@ public class JsoupTaskExecutor implements TaskExecutor {
     public List<Map<String, Object>> doExecute(String url, List<? extends Step> steps) {
         try {
             // some site return status 200, but content was un-authorization
-            doc = connection.url(url).get();
+            Connection.Response response = connection.url(url).execute();
+            if (response.statusCode() != 200) {
+                log.error("request url:{}, status: {} - {}", url, response.statusCode(), response.statusMessage());
+                throw new ForceStopException("request url not ok");
+            }
+            doc = response.parse();
             context.activeWindow(url);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
         context.snapshotElement(url, doc);

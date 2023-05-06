@@ -152,19 +152,7 @@ public class JsoupStepHandlerFactory {
             switch (type) {
                 case ADD_COOKIES -> HttpSupport.handleCookies(step.cookies(), connection::cookie);
                 case NAVIGATE -> {
-                    try {
-                        URL url = new URL(step.target());
-                        Document newContent = connection.url(url).get();
-                        Optional.ofNullable(anti.get(url.getHost()))
-                                .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
-                                .accept(newContent);
-                        context.activeWindow(step.target());
-                        context.snapshotElement(context.currentWindow(), newContent);
-                    } catch (ForceStopException | VerifyStopException fse) {
-                        throw fse;
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                    visitUrl(step.target(), context);
                 }
                 case CLICK -> {
                     Element clickable = context.getElement(step.target());
@@ -172,19 +160,7 @@ public class JsoupStepHandlerFactory {
                         String href = clickable.attr("href");
                         if (!href.isEmpty()) {
                             String target = AntiDianPingAntiCrawler.normalizeUrl(context.currentWindow(), href);
-                            try {
-                                URL url = new URL(target);
-                                Document newContent = connection.url(target).get();
-                                Optional.ofNullable(anti.get(url.getHost()))
-                                        .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
-                                        .accept(newContent);
-                                context.activeWindow(target);
-                                context.snapshotElement(context.currentWindow(), newContent);
-                            } catch (ForceStopException | VerifyStopException fse) {
-                                throw fse;
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
+                            visitUrl(target, context);
                         }
                     } else if (!step.ignoreNotApply()) {
                         throw new IllegalArgumentException("click target must exist");
@@ -195,6 +171,27 @@ public class JsoupStepHandlerFactory {
                 }
                 case CLOSE -> context.destroyWindow();
                 default -> throw new RuntimeException("unimplemented!");
+            }
+        }
+
+        private void visitUrl(String target, Context<Element> context) {
+            try {
+                URL url = new URL(target);
+                Connection.Response response = connection.url(url).execute();
+                if (response.statusCode() != 200) {
+                    log.error("request url: {}, status: {} - {}", url, response.statusCode(), response.statusMessage());
+                    throw new ForceStopException("navigate to url not ok");
+                }
+                Document newContent = response.parse();
+                Optional.ofNullable(anti.get(url.getHost()))
+                        .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))
+                        .accept(newContent);
+                context.activeWindow(target);
+                context.snapshotElement(context.currentWindow(), newContent);
+            } catch (ForceStopException | VerifyStopException fse) {
+                throw fse;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
     }
