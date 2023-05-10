@@ -29,6 +29,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -44,6 +45,9 @@ public class Application {
 
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
 
+    // http://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+
     private static final String APPLICATION_JSON_VALUE = "application/json;charset=UTF-8";
 
     private static final String JSON_SUFFIX = ".json";
@@ -52,11 +56,15 @@ public class Application {
 
     private static final String APPLICATION_JSON_ENV_KEY = "CRAWLER_APPLICATION_JSON";
 
+    private static final String AUTHORIZATION_ENV_KEY = "CRAWLER_AUTHORIZATION_TOKEN";
+
     private static final Set<String> PROCESSED = new HashSet<>();
 
     private static ObjectMapper om;
 
     private static HttpClient httpClient;
+
+    private static char[] authorizationToken;
 
 
     public static class Args {
@@ -67,8 +75,8 @@ public class Application {
         @Parameter(names = {"-e", "--executor"}, description = "job executor type: webdriver, jsoup")
         private String executorType;
 
-        @Parameter(names = {"-f", "--feedback"}, description = "progress feedback to: console, http[s]://")
-        private String feedback = "console";
+        @Parameter(names = {"-f", "--feedback"}, description = "progress feedback to: null for console, or use http[s]://")
+        private String feedback;
 
         @Parameter(names = {"-w", "--write"}, required = true, description = "write to place: file:// or http[s]://")
         private String outputDestination;
@@ -208,6 +216,10 @@ public class Application {
         log.debug("node settings: {}", defaultNodeSettings);
 
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(connectionTimeout)).build();
+        authorizationToken = Optional.ofNullable(System.getenv(AUTHORIZATION_ENV_KEY))
+                .map(t -> t.toCharArray())
+                .orElse(new char[0]);
+
 
         Register.initialize();
 
@@ -218,7 +230,7 @@ public class Application {
 
         while(times < maxTimes) {
             try {
-                TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource);
+                TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource, readTimeout);
                 if (taskDefinition == null) {
                     log.warn("no task to executor when polling {}", taskSource);
                     continue;
@@ -294,7 +306,7 @@ public class Application {
         }
     }
 
-    private static TaskDefinition pollTask(String source) throws Exception {
+    private static TaskDefinition pollTask(String source, long readTimeout) throws Exception {
         if (source.startsWith(FILE_PROTOCOL)) {
             File src = new File(source.substring(FILE_PROTOCOL.length()));
             String srcFile = source;
@@ -310,31 +322,28 @@ public class Application {
                 return om.readValue(fis, TaskDefinition.class);
             }
         } else if (source.startsWith(HTTP_PROTOCOL) || source.startsWith(HTTPS_PROTOCOL)) {
-            HttpRequest request = HttpRequest.newBuilder().uri(new URI(source))
-                    .GET()
-                    .build();
+            HttpRequest request = makeRequest(true, source, null, readTimeout);
             HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream body = response.body()) {
-                if (response.statusCode() != 200) {
+                if (response.statusCode() == 200) {
+                    return om.readValue(body, TaskDefinition.class);
+                } else if (response.statusCode() == 401 || response.statusCode() == 403) {
+                    throw new ForceStopException("未授权或没有权限访问指定资源，请检查系统环境变量是否设置：" + AUTHORIZATION_ENV_KEY);
+                } else {
                     log.error("poll task error: {}", new String(body.readAllBytes(), StandardCharsets.UTF_8));
                 }
-                return om.readValue(body, TaskDefinition.class);
             }
         }
         return null;
     }
 
     private static void feedback(String to, Progress progress, long readTimeout) throws Exception {
-        if ("console".equals(to)) {
-            log.info("task progress: {}", progress);
-        } else {
-            HttpRequest request = HttpRequest.newBuilder().uri(new URI(to))
-                    .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(progress)))
-                    .timeout(Duration.ofMillis(readTimeout))
-                    .build();
+        if (to != null && (to.startsWith(HTTP_PROTOCOL) || to.startsWith(HTTPS_PROTOCOL))) {
+            HttpRequest request = makeRequest(false, to, progress, readTimeout);
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(x -> log.debug("feedback to [{}] and response status: {}", to, x.statusCode()));
+        } else {
+            log.info("task progress: {}", progress);
         }
     }
 
@@ -349,14 +358,22 @@ public class Application {
                 fos.write(om.writeValueAsBytes(crawResult));
             }
         } else if (destination.startsWith(HTTP_PROTOCOL) || destination.startsWith(HTTPS_PROTOCOL)) {
-            HttpRequest request = HttpRequest.newBuilder().uri(new URI(destination))
-                    .header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(crawResult)))
-                    .timeout(Duration.ofMillis(readTimeout))
-                    .build();
+            HttpRequest request = makeRequest(false, destination, crawResult, readTimeout);
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(x -> log.info("submit result to [{}] and response status: {}", destination, x.statusCode()));
         }
+    }
+
+    private static HttpRequest makeRequest(boolean get, String url, Object data, long readTimeout) throws Exception {
+        HttpRequest.Builder rb = HttpRequest.newBuilder().uri(new URI(url));
+        if (authorizationToken.length != 0) {
+            rb.header(AUTHORIZATION_HEADER, new String(authorizationToken));
+        }
+        if (!get) {
+            rb.header(CONTENT_TYPE_HEADER, APPLICATION_JSON_VALUE);
+        }
+        rb.timeout(Duration.ofMillis(readTimeout));
+        return get ? rb.GET().build() : rb.POST(HttpRequest.BodyPublishers.ofByteArray(om.writeValueAsBytes(data))).build();
     }
 
 }
