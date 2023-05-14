@@ -64,9 +64,13 @@
 
       + Unknown HttpClient factory jdk-http-client
 
-        maven-assembly-plugin package all classes into one fat jar, SPI implementation files under 'META-INF/services' directory conflict.
+        As maven-assembly-plugin package all classes into one fat jar, SPI implementation files under 'META-INF/services' directory conflict.
 
-        put selenium-http-jdk-client*.jar into classpath like 'java -Dwebdriver.http.factory=jdk-http-client -cp selenium-http-jdk-client*.jar -jar crawler*.jar -r file://local.json -w file://result.json'.
+        Assume you exported M2_REPO, usually it is ${user.home}/.m2/repository, and try take selenium-http-jdk-client as classpath option like below:
+
+        ```shell
+        java -Dwebdriver.http.factory=jdk-http-client -cp $M2_REPO/org/seleniumhq/selenium/selenium-http-jdk-client/4.6.0/selenium-http-jdk-client-4.6.0.jar -jar crawler*-jar-with-dependencies.jar -r file://local.json -w file://result.json
+        ```
 
       + Could not start a new session. Response code 500. Message: unknown error: Chrome failed to start: crashed
 
@@ -74,6 +78,14 @@
 
         ```shell
         -Dcrawler.application.json="{\"arguments\":[\"--no-sandbox\"]}"
+        ```
+        
+      + Could not start a new session. Response code 500. Message: unknown error: Chrome failed to start: Chrome failed to start: exit abnormally (unknown error: DevToolsActivePort file doesn't exist)
+   
+        try combine '--no-sandbox' and '--headless=new' as below:
+
+        ```shell
+        -Dcrawler.application.json="{\"arguments\":[\"--headless=new\", \"--no-sandbox\"]}"
         ```
 
 ## 免责声明
