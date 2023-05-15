@@ -230,9 +230,11 @@ public class Application {
 
         while(times < maxTimes) {
             try {
-                TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource, readTimeout);
+                TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource, executorId, readTimeout);
                 if (taskDefinition == null) {
                     log.warn("no task to executor when polling {}", taskSource);
+                    times++;
+                    sleep();
                     continue;
                 }
                 TaskDefinition task = defaultNodeSettings == null ?
@@ -306,7 +308,7 @@ public class Application {
         }
     }
 
-    private static TaskDefinition pollTask(String source, long readTimeout) throws Exception {
+    private static TaskDefinition pollTask(String source, String executorId, long readTimeout) throws Exception {
         if (source.startsWith(FILE_PROTOCOL)) {
             File src = new File(source.substring(FILE_PROTOCOL.length()));
             String srcFile = source;
@@ -322,11 +324,15 @@ public class Application {
                 return om.readValue(fis, TaskDefinition.class);
             }
         } else if (source.startsWith(HTTP_PROTOCOL) || source.startsWith(HTTPS_PROTOCOL)) {
-            HttpRequest request = makeRequest(true, source, null, readTimeout);
+            char separator = source.indexOf('?') > 0 ? '&' : '?';
+            String url = source + separator + "executorId=" + executorId;
+            HttpRequest request = makeRequest(true, url, null, readTimeout);
             HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream body = response.body()) {
                 if (response.statusCode() == 200) {
                     return om.readValue(body, TaskDefinition.class);
+                } else if (response.statusCode() == 204) {
+                    log.info("no content");
                 } else if (response.statusCode() == 401 || response.statusCode() == 403) {
                     throw new ForceStopException("未授权或没有权限访问指定资源，请检查系统环境变量是否设置：" + AUTHORIZATION_ENV_KEY);
                 } else {
