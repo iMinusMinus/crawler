@@ -90,11 +90,13 @@ public abstract class Register {
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_AUTH_DOMAIN,
                 AntiDianPingAntiCrawler::handleVerify);
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_LOGIN_DOMAIN,
-                AntiDianPingAntiCrawler::handleVerify);
+                AntiDianPingAntiCrawler::handleLogin);
         WebDriverStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
                 AntiDianPingAntiCrawler::handleForbidden);
         JsoupStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_HOST,
                 AntiDianPingAntiCrawler::failIfBlock);
+//        JsoupStepHandlerFactory.registerAnti(AntiDianPingAntiCrawler.DIANPING_LOGIN_DOMAIN,
+//                AntiDianPingAntiCrawler::handleLogin);
     }
 
     /**

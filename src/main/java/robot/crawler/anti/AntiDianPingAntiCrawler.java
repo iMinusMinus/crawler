@@ -182,7 +182,7 @@ public abstract class AntiDianPingAntiCrawler {
             try {
                 Thread.sleep(sleepTimeInMilliseconds);
                 if (times % (notifyIntervalInMilliseconds / sleepTimeInMilliseconds) == 0) {
-                    log.warn("请通过滑块验证，程序才能继续执行");
+                    log.warn("请通过滑块验证，程序才能继续执行:{}", webDriver.getCurrentUrl());
                 }
             } catch (InterruptedException ie) {
                 Thread.interrupted();
@@ -201,4 +201,9 @@ public abstract class AntiDianPingAntiCrawler {
         return !normalizeUrl(webDriver.getCurrentUrl(), not).equals(webDriver.getCurrentUrl());
     }
 
+    // 跳转登陆界面
+    public static void handleLogin(WebDriver webDriver, String expect) {
+        log.warn("current page is {}", webDriver.getCurrentUrl());
+        throw new ForceStopException("login page, exit now");
+    }
 }
