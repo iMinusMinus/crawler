@@ -1,0 +1,41 @@
+package robot.crawler.anti;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.interactions.Actions;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.List;
+
+public class AntiCaptchaTest {
+
+    @Test
+    public void testEDun() throws Exception {
+        // export msedgedriver.exe to webdriver.edge.driver
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+        // export opencv_java* to java.library.path
+        WebDriver webDriver = new EdgeDriver();
+        String startUrl = "https://dun.163.com/trial/jigsaw";
+        webDriver.get(startUrl);
+        WebElement dragable = webDriver.findElement(By.cssSelector("body > main > div.g-bd > div > div.g-mn2 > div.m-tcapt > div.tcapt-type__container > div.tcapt-type__item.active > div > div > div.tcapt_content > div.u-fitem.u-fitem-capt > div > div > div.yidun_control > div.yidun_slider.yidun_slider--hover"));
+        WebElement templImage = webDriver.findElement(By.cssSelector("body > main > div.g-bd > div > div.g-mn2 > div.m-tcapt > div.tcapt-type__container > div.tcapt-type__item.active > div > div > div.tcapt_content > div.u-fitem.u-fitem-capt > div > div > div.yidun_panel > div > div.yidun_bgimg > img.yidun_jigsaw"));
+        WebElement backgroundImage = webDriver.findElement(By.cssSelector("body > main > div.g-bd > div > div.g-mn2 > div.m-tcapt > div.tcapt-type__container > div.tcapt-type__item.active > div > div > div.tcapt_content > div.u-fitem.u-fitem-capt > div > div > div.yidun_panel > div > div.yidun_bgimg > img.yidun_bg-img"));
+        HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        byte[]  jigsaw = httpClient.send(HttpRequest.newBuilder().GET().uri(URI.create(templImage.getAttribute("src"))).build(), HttpResponse.BodyHandlers.ofByteArray()).body();
+        byte[] bg = httpClient.send(HttpRequest.newBuilder().GET().uri(URI.create(backgroundImage.getAttribute("src"))).build(), HttpResponse.BodyHandlers.ofByteArray()).body();
+        new Actions(webDriver).clickAndHold(dragable).perform();
+        AntiCaptcha.passThroughSlideCaptcha(webDriver, jigsaw, bg, 10);
+        new Actions(webDriver).release(dragable).perform();
+        List<WebElement> elementList = webDriver.findElements(By.cssSelector("body > main > div.g-bd > div > div.g-mn2 > div.m-tcapt > div.tcapt-type__container > div.tcapt-type__item.active > div > div > div.tcapt_content > div.u-fitem.u-fitem-capt > div > div > div.yidun_control.yidun_control--moving > div.yidun_slider.yidun_slider--hover > span"));
+        Assertions.assertTrue(elementList.size() > 0 || !startUrl.equals(webDriver.getCurrentUrl()));
+        webDriver.quit();
+    }
+}

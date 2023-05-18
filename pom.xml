@@ -87,6 +87,19 @@
             <artifactId>janino</artifactId>
             <version>3.1.9</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.opencv</groupId>-->
+<!--            <artifactId>opencv</artifactId>-->
+<!--            <version>4.7.0</version>-->
+<!--            <scope>system</scope>-->
+<!--            <systemPath>D:/Program Files/opencv/build/java/opencv-470.jar</systemPath>-->
+<!--        </dependency>-->
+        <!-- opencv官方未往maven中央仓库上传最新版本，openpnp的版本包含多个操作系统的动态代码库（体积较大） -->
+<!--        <dependency>-->
+<!--            <groupId>org.openpnp</groupId>-->
+<!--            <artifactId>opencv</artifactId>-->
+<!--            <version>4.7.0-0</version>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>

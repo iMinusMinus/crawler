@@ -3,7 +3,10 @@ package robot.crawler.anti;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.crawler.reactor.HttpSupport;
@@ -46,6 +49,10 @@ public abstract class AntiDianPingAntiCrawler {
     private static final String TCV_PROPERTY = "textCssVersion";
 
     private static final List<String> UUID_KEY = List.of("dper", "_hc.v", "_lxsdk_cuid");
+
+    private static final String BG_IMG_CSS_PROPERTY = "background-image";
+
+    private static final String BG_IMG_DATA_PREFIX = "url(\"data:image/png;base64,";
 
     private static final int PARTNER = 150;
 
@@ -180,6 +187,16 @@ public abstract class AntiDianPingAntiCrawler {
         long notifyIntervalInMilliseconds = 5 * 60 * 1000;
         while(times < (waitTimeInMilliseconds / sleepTimeInMilliseconds) && !is(webDriver, expect, not)) {
             try {
+                WebElement sliderDrag = webDriver.findElement(By.id("puzzleSliderDrag")); // 滑动匹配图
+                WebElement main = webDriver.findElement(By.id("puzzleImageMain")); // 背景图
+                WebElement draggable = webDriver.findElement(By.id("puzzleSliderBox")); // puzzleSliderMoveingBar, 拖动条
+                new Actions(webDriver).clickAndHold(draggable).perform();
+                AntiCaptcha.passThroughSlideCaptcha(webDriver, parseImgFromElement(sliderDrag), parseImgFromElement(main), 10);
+                new Actions(webDriver).release(draggable).perform();
+                if (is(webDriver, expect, not)) {
+                    log.debug("滑块验证通过");
+                    break;
+                }
                 Thread.sleep(sleepTimeInMilliseconds);
                 if (times % (notifyIntervalInMilliseconds / sleepTimeInMilliseconds) == 0) {
                     log.warn("请通过滑块验证，程序才能继续执行:{}", webDriver.getCurrentUrl());
@@ -192,6 +209,14 @@ public abstract class AntiDianPingAntiCrawler {
         if (times >= (waitTimeInMilliseconds / sleepTimeInMilliseconds)) {
             throw new ForceStopException("waiting too long for verification, exit now");
         }
+    }
+
+    private static byte[] parseImgFromElement(WebElement element) {
+        String img = element.getCssValue(BG_IMG_CSS_PROPERTY);
+        if (!img.startsWith(BG_IMG_DATA_PREFIX)) {
+            throw new ForceStopException("slide of dom change");
+        }
+        return Base64.getDecoder().decode(img.substring(BG_IMG_DATA_PREFIX.length(), img.length() - 1));
     }
 
     private static boolean is(WebDriver webDriver, String expect, String not) {

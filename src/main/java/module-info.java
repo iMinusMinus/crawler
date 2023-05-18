@@ -21,6 +21,9 @@ module crawler {
     //jsoup
     requires org.jsoup;
 
+    // optional
+    requires static opencv;
+
     // exports to selenium and janino(janino was unnamed module, so exports to ALL_UNNAMED )
     exports robot.crawler.reactor;
 
