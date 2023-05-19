@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.FluentWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.crawler.reactor.HttpSupport;
@@ -16,6 +19,7 @@ import robot.crawler.spec.VerifyStopException;
 import java.io.ByteArrayOutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +56,11 @@ public abstract class AntiDianPingAntiCrawler {
 
     private static final String BG_IMG_CSS_PROPERTY = "background-image";
 
+    private static final String BG_SIZE_CSS_PROPERTY = "background-size";
+
     private static final String BG_IMG_DATA_PREFIX = "url(\"data:image/png;base64,";
+
+    private static final String BG_IMG_DATA_SUFFIX = "\")";
 
     private static final int PARTNER = 150;
 
@@ -187,11 +195,20 @@ public abstract class AntiDianPingAntiCrawler {
         long notifyIntervalInMilliseconds = 5 * 60 * 1000;
         while(times < (waitTimeInMilliseconds / sleepTimeInMilliseconds) && !is(webDriver, expect, not)) {
             try {
+                new FluentWait<>(webDriver).withTimeout(Duration.ofMillis(10000))
+                        .ignoring(NoSuchElementException.class)
+                        .until(ExpectedConditions.visibilityOfElementLocated(By.id("puzzleSliderDrag")));
                 WebElement sliderDrag = webDriver.findElement(By.id("puzzleSliderDrag")); // 滑动匹配图
+                log.info("slider image background-size: {}", sliderDrag.getCssValue(BG_SIZE_CSS_PROPERTY));
                 WebElement main = webDriver.findElement(By.id("puzzleImageMain")); // 背景图
+                log.info("background image background-size: {}", main.getCssValue(BG_SIZE_CSS_PROPERTY));
                 WebElement draggable = webDriver.findElement(By.id("puzzleSliderBox")); // puzzleSliderMoveingBar, 拖动条
                 new Actions(webDriver).clickAndHold(draggable).perform();
-                AntiCaptcha.passThroughSlideCaptcha(webDriver, parseImgFromElement(sliderDrag), parseImgFromElement(main), 10);
+                // 点评滑块人眼大小远小于占据大小（5.831em * 13.875em），背景图为18.5em * 13.875em = 296 * 222，font-size为16px，实际缩放成原图的1/3了！
+                // 点评滑块每次视野位置不同，固定水平位移失效
+                byte[] slideImg = parseImgFromElement(sliderDrag);
+                int offset = AntiCaptcha.edgeOffset(slideImg);
+                AntiCaptcha.passThroughSlideCaptcha(webDriver, slideImg, parseImgFromElement(main), 1d/3d, -offset);
                 new Actions(webDriver).release(draggable).perform();
                 if (is(webDriver, expect, not)) {
                     log.debug("滑块验证通过");
@@ -216,7 +233,7 @@ public abstract class AntiDianPingAntiCrawler {
         if (!img.startsWith(BG_IMG_DATA_PREFIX)) {
             throw new ForceStopException("slide of dom change");
         }
-        return Base64.getDecoder().decode(img.substring(BG_IMG_DATA_PREFIX.length(), img.length() - 1));
+        return Base64.getDecoder().decode(img.substring(BG_IMG_DATA_PREFIX.length(), img.length() - BG_IMG_DATA_SUFFIX.length()));
     }
 
     private static boolean is(WebDriver webDriver, String expect, String not) {
