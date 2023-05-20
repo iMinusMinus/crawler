@@ -1,6 +1,14 @@
 package robot.crawler.anti;
 
-import org.opencv.core.*;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.WebDriver;
@@ -9,11 +17,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 public abstract class AntiCaptcha {
 
@@ -23,12 +33,38 @@ public abstract class AntiCaptcha {
 
     private static final AtomicBoolean INITED = new AtomicBoolean(false);
 
+    // https://www.garykessler.net/library/file_sigs.html
+    private static final Function<byte[], String> IMG_FORMAT = (content) -> {
+        if (content[0] ==  (byte) 0xFF && content[1] ==  (byte) 0xD8) {
+            return ".jpg";
+        } else if (content[0] ==  (byte) 0x42 && content[1] ==  (byte) 0x4D) {
+            return ".bmp";
+        } else if (content[0] ==  (byte) 0x89 && content[1] ==  (byte) 0x50 && content[2] ==  (byte) 0x4E && content[3] ==  (byte) 0x47
+                && content[4] ==  (byte) 0x0D && content[5] ==  (byte) 0x0A && content[6] ==  (byte) 0x1A && content[7] ==  (byte) 0x0A) {
+            return ".png";
+        } else if(content[0] ==  (byte) 0x52 && content[1] ==  (byte) 0x49 && content[2] ==  (byte) 0x46 && content[3] ==  (byte) 0x46
+                && content[8] ==  (byte) 0x57 && content[9] ==  (byte) 0x45 && content[10] ==  (byte) 0x42 && content[11] ==  (byte) 0x50) {
+            return ".webp";
+        } else {
+            return null;
+        }
+    };
+
     static {
         try {
             System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
             INITED.compareAndSet(false, true);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (UnsatisfiedLinkError e) { // SecurityException ignore?
+            log.warn("opencv library should export to environment PATH, try openpnp way\n {}", e.getMessage());
+            // openpnp support
+            try {
+                Class klazz = Class.forName("nu.pattern.OpenCV");
+                Method loadJni = klazz.getDeclaredMethod("loadShared", new Class[0]); // 高版本JDK会自动切换到loadLocally
+                loadJni.setAccessible(true);
+                loadJni.invoke(klazz, new Object[0]);
+            } catch (Exception openpnp) {
+                log.error(openpnp.getMessage(), openpnp);
+            }
         }
     }
 
@@ -36,7 +72,7 @@ public abstract class AntiCaptcha {
         AntiCaptcha.debug = debug;
     }
 
-    public static int edgeOffset(byte[] slideToDragImg) {
+    public static org.openqa.selenium.Point edgeOffset(byte[] slideToDragImg) {
         MatOfByte slideToDrag = new MatOfByte(slideToDragImg);
         Mat slide = Imgcodecs.imdecode(slideToDrag, Imgcodecs.IMREAD_GRAYSCALE);
         Mat tmp = new Mat();
@@ -44,18 +80,18 @@ public abstract class AntiCaptcha {
         Imgproc.threshold(slide, tmp, 0, 255, Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU);
         List<MatOfPoint> list = new ArrayList<>();
         Mat hierarchy = new Mat();
-        Imgproc.findContours(tmp, list, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); // FIXME 非矩形，需要处理
+        Imgproc.findContours(tmp, list, hierarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
         log.debug("检测出矩形数量：{}", list.size());
         for (MatOfPoint mp : list) {
             double v = Imgproc.contourArea(mp);
-            if (v > 900) { // XXX 图形大小多少合适
+            if (v > 10000) { // XXX 图形大小多少合适
                 Rect rect = Imgproc.boundingRect(mp);
-                log.debug("滑块图形高[{}]宽[{}]，视野滑块宽[{}]，边距:{}", slide.height(), slide.width(), rect.width, rect.x);
-                return rect.x + rect.width;
+                log.debug("滑块图片高[{}]宽[{}]，滑块图形高[{}]宽[{}]，边距:{}", slide.height(), slide.width(), rect.height, rect.width, rect.x);
+                return new org.openqa.selenium.Point(slide.width() - rect.x - rect.width, slide.height() - rect.y - rect.height);
             }
         }
         log.info("未找到合适的矩形");
-        return 0;
+        return new org.openqa.selenium.Point(0, 0);
     }
 
     public static void passThroughSlideCaptcha(WebDriver webDriver, byte[] slideToDragImg, byte[] backgroundImg, double scale,
@@ -143,7 +179,7 @@ public abstract class AntiCaptcha {
         try {
             Thread.sleep((int) time);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
         }
     }
 
@@ -168,32 +204,32 @@ public abstract class AntiCaptcha {
         Core.normalize(tmp, tmp, 0, 1, Core.NORM_MINMAX, -1, new Mat());
         Core.MinMaxLocResult result = Core.minMaxLoc(tmp);
         log.info("max movement: {}, min movement:{}", result.maxLoc, result.minLoc);
-        mask(background, slide, result.maxLoc, xOffset, yOffset);
+        mask(background, slide, result.maxLoc, xOffset, yOffset, IMG_FORMAT.apply(slideToDragImg));
         return result.maxLoc;
     }
 
-    private static void mask(Mat background, Mat slide, Point maxLoc, int xOffset, int yOffset) {
+    private static void mask(Mat background, Mat slide, Point maxLoc, int xOffset, int yOffset, String imgFmt) {
         if (debug) {
             Mat write = background.clone();
-            // TODO 半透明形式将滑块置于背景图形上
-//            int rowStart = (int) maxLoc.y + yOffset;
-//            int rowEnd = (int) maxLoc.y + slide.rows() + yOffset;
-//            assert rowStart < rowEnd && rowEnd <= write.width();
-//            int colStart = (int) maxLoc.x + xOffset;
-//            int colEnd = (int) maxLoc.x + slide.cols() + xOffset;
-//            assert colStart < colEnd && colEnd <= write.height();
-//            Mat part = write.submat(rowStart, rowEnd, colStart, colEnd);
-//            Mat merged = new Mat();
-//            Core.addWeighted(part, 0.5, slide, 0.7, 3, merged); // 要求2个图像大小相等
-//            byte[] data = new byte[(int) slide.total() * slide.channels()];
-//            merged.get(0, 0, data);
-//            write.put(rowStart, colStart, data);
             Point end = new Point(maxLoc.x + slide.cols(), maxLoc.y + slide.rows());
-            Imgproc.rectangle(write, maxLoc, end, new Scalar(0, 0, 255), 2, 8, 0);
+            Imgproc.rectangle(write, maxLoc, end, new Scalar(0, 0, 255), 2, Imgproc.LINE_8, 0);
+//            HighGui.imshow("locate", write);
+//            HighGui.waitKey();
+            Imgproc.rectangle(write, new Point(maxLoc.x + xOffset, maxLoc.y + yOffset), new Point(end.x + xOffset, end.y + yOffset), new Scalar(0, 255, 0), 2, Imgproc.LINE_8, 0);
+//            HighGui.imshow("slide", write);
+//            HighGui.waitKey();
+//            HighGui.destroyAllWindows();
+            File tmpFile = null;
             try {
-                Imgcodecs.imwrite(File.createTempFile(UUID.randomUUID().toString(), ".png").getAbsolutePath(), write);
+                tmpFile = File.createTempFile(UUID.randomUUID().toString(), imgFmt);
+                Imgcodecs.imwrite(tmpFile.getAbsolutePath(), write);
+                log.info("debug output match result: {}", tmpFile.getAbsolutePath());
             } catch (Exception ignore) {
 
+            } finally {
+                if (tmpFile != null) {
+                    tmpFile.deleteOnExit();
+                }
             }
         }
     }

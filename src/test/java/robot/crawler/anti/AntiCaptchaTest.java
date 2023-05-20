@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -46,8 +47,8 @@ public class AntiCaptchaTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"bab7e6e753484b85b5613a662c62ead4"})
-    @Disabled
+    @ValueSource(strings = {"b62bec6023a14afeb5813412c2e1acdd"})
+//    @Disabled
     public void testDianping(String requestCode) throws Exception {
         WebDriver webDriver = new ChromeDriver();
         String startUrl = "https://verify.meituan.com/v2/web/general_page?action=spiderindefence&requestCode=" + requestCode + "&platform=1000&adaptor=auto&succCallbackUrl=https%3A%2F%2Foptimus-mtsi.meituan.com%2Foptimus%2FverifyResult%3ForiginUrl%3Dhttps%253A%252F%252Fwww.dianping.com%252F&theme=dianping";
@@ -61,8 +62,8 @@ public class AntiCaptchaTest {
         String backgroundBase64 = main.getCssValue("background-image"); //
         byte[] backgroundPng = Base64.getDecoder().decode(backgroundBase64.substring(27, backgroundBase64.length() - 2));
         AntiCaptcha.setDebug(true);
-        int offset = AntiCaptcha.edgeOffset(slidePng);
-        AntiCaptcha.passThroughSlideCaptcha(webDriver, slidePng, backgroundPng, 1d/3d, -offset);
+        Point offset = AntiCaptcha.edgeOffset(slidePng);
+        AntiCaptcha.passThroughSlideCaptcha(webDriver, slidePng, backgroundPng, 1d/3d, -offset.x);
         new Actions(webDriver).release(draggable).perform();
         webDriver.quit();
     }
@@ -75,8 +76,8 @@ public class AntiCaptchaTest {
             String slideBase64 = new String(fis2.readAllBytes());
             byte[] ss = Base64.getDecoder().decode(slideBase64.substring(27, slideBase64.length() - 2));
             AntiCaptcha.setDebug(true);
-            int offset = AntiCaptcha.edgeOffset(ss);
-            AntiCaptcha.calculateDistance(ss, bs, -offset, 0);
+            Point offset = AntiCaptcha.edgeOffset(ss);
+            AntiCaptcha.calculateDistance(ss, bs, -offset.x, -offset.y);
         } catch (Exception e) {
             e.printStackTrace();
         }

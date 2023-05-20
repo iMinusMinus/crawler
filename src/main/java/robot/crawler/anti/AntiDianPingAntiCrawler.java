@@ -5,6 +5,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
@@ -207,11 +208,11 @@ public abstract class AntiDianPingAntiCrawler {
                 // 点评滑块人眼大小远小于占据大小（5.831em * 13.875em），背景图为18.5em * 13.875em = 296 * 222，font-size为16px，实际缩放成原图的1/3了！
                 // 点评滑块每次视野位置不同，固定水平位移失效
                 byte[] slideImg = parseImgFromElement(sliderDrag);
-                int offset = AntiCaptcha.edgeOffset(slideImg);
-                AntiCaptcha.passThroughSlideCaptcha(webDriver, slideImg, parseImgFromElement(main), 1d/3d, -offset);
+                Point offset = AntiCaptcha.edgeOffset(slideImg);
+                AntiCaptcha.passThroughSlideCaptcha(webDriver, slideImg, parseImgFromElement(main), 1d/3d, -offset.x);
                 new Actions(webDriver).release(draggable).perform();
                 if (is(webDriver, expect, not)) {
-                    log.debug("滑块验证通过");
+                    log.info("滑块验证通过");
                     break;
                 }
                 Thread.sleep(sleepTimeInMilliseconds);
