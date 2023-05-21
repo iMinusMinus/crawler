@@ -84,7 +84,7 @@ public abstract class AntiCaptcha {
         log.debug("检测出矩形数量：{}", list.size());
         for (MatOfPoint mp : list) {
             double v = Imgproc.contourArea(mp);
-            if (v > 10000) { // XXX 图形大小多少合适
+            if (v > 8000) { //  图形大小多少合适(dianping为8352)
                 Rect rect = Imgproc.boundingRect(mp);
                 log.debug("滑块图片高[{}]宽[{}]，滑块图形高[{}]宽[{}]，边距:{}", slide.height(), slide.width(), rect.height, rect.width, rect.x);
                 return new org.openqa.selenium.Point(slide.width() - rect.x - rect.width, slide.height() - rect.y - rect.height);
@@ -194,10 +194,14 @@ public abstract class AntiCaptcha {
         Imgproc.GaussianBlur(slide, slide, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
         Mat dragTmp = new Mat();
         Imgproc.Canny(slide, dragTmp, 100, 100);
+//        HighGui.imshow("drag", dragTmp);
+//        HighGui.waitKey(0);
 
         Imgproc.GaussianBlur(background, background, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
         Mat bgTmp = new Mat();
-        Imgproc.Canny(background, bgTmp, 100, 200);
+        Imgproc.Canny(background, bgTmp, 50, 100);
+//        HighGui.imshow("bg", bgTmp);
+//        HighGui.waitKey(0);
 
         Mat tmp = new Mat();
         Imgproc.matchTemplate(bgTmp, dragTmp, tmp, Imgproc.TM_CCORR_NORMED); // TM_CCORR_NORMED, TM_CCOEFF_NORMED效果较好
@@ -214,10 +218,10 @@ public abstract class AntiCaptcha {
             Point end = new Point(maxLoc.x + slide.cols(), maxLoc.y + slide.rows());
             Imgproc.rectangle(write, maxLoc, end, new Scalar(0, 0, 255), 2, Imgproc.LINE_8, 0);
 //            HighGui.imshow("locate", write);
-//            HighGui.waitKey();
+//            HighGui.waitKey(0);
             Imgproc.rectangle(write, new Point(maxLoc.x + xOffset, maxLoc.y + yOffset), new Point(end.x + xOffset, end.y + yOffset), new Scalar(0, 255, 0), 2, Imgproc.LINE_8, 0);
 //            HighGui.imshow("slide", write);
-//            HighGui.waitKey();
+//            HighGui.waitKey(0);
 //            HighGui.destroyAllWindows();
             File tmpFile = null;
             try {
