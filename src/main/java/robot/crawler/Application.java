@@ -228,7 +228,7 @@ public class Application {
 
         int times = 0;
 
-        while(times < maxTimes) {
+        while(times < maxTimes || maxTimes < 0) {
             try {
                 TaskDefinition taskDefinition = retryTask != null ? retryTask : pollTask(taskSource, executorId, readTimeout);
                 if (taskDefinition == null) {
@@ -318,7 +318,7 @@ public class Application {
                     return null;
                 }
                 PROCESSED.add(files[0].getName());
-                srcFile += File.pathSeparator + files[0].getName();
+                srcFile += File.separator + files[0].getName();
             }
             try (FileInputStream fis =new FileInputStream(srcFile.substring(FILE_PROTOCOL.length()))) {
                 return om.readValue(fis, TaskDefinition.class);
@@ -358,7 +358,7 @@ public class Application {
             String destFile = destination;
             File dest = new File(destination.substring(FILE_PROTOCOL.length()));
             if (dest.isDirectory()) {
-                destFile += File.pathSeparator + crawResult.taskId() + JSON_SUFFIX;
+                destFile += File.separator + crawResult.taskId() + JSON_SUFFIX;
             }
             try (FileOutputStream fos = new FileOutputStream(destFile.substring(FILE_PROTOCOL.length()))) {
                 fos.write(om.writeValueAsBytes(crawResult));
