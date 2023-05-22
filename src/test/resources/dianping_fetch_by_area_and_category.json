@@ -172,6 +172,41 @@
               "required": true
             },
             {
+              "id": "shop-recommend",
+              "name": "查找推荐商品、服务",
+              "type": "locator",
+              "selector": "div.txt > div.recommend > a",
+              "multi": true
+            },
+            {
+              "name": "获取推荐",
+              "type": "box",
+              "target": "shop-recommend",
+              "outputPropertyName": "recommend",
+              "outputValueType": "list",
+              "wrap": true,
+              "steps": [
+                {
+                  "name": "获取商品、服务名称",
+                  "type": "finder",
+                  "xpath": ".",
+                  "valueGetter": "text",
+                  "outputPropertyName": "productName",
+                  "outputValueType": "string"
+                },
+                {
+                  "name": "获取商品、服务ID: https://www.dianping.com/shop/{shopId}/{productId}",
+                  "type": "finder",
+                  "xpath": ".",
+                  "valueGetter": "attribute",
+                  "attributeKey": "href",
+                  "outputPropertyName": "productId",
+                  "outputValueType": "string",
+                  "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)"
+                }
+              ]
+            },
+            {
               "id": "shop-coupons",
               "name": "查找店铺优惠券元素",
               "type": "locator",
@@ -194,6 +229,15 @@
                   "outputValueType": "string"
                 }
               ]
+            },
+            {
+              "name": "获取店铺促销标记",
+              "type": "finder",
+              "selector": "div.svr-info > a",
+              "valueGetter": "text",
+              "outputPropertyName": "promotion",
+              "outputValueType": "string",
+              "hint": "'促'标识或'优惠'标识为手机app买单优惠"
             },
             {
               "id": "locate-shop-site-link",
