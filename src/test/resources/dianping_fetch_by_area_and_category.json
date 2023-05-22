@@ -82,6 +82,17 @@
               "required": true
             },
             {
+              "name": "获取品牌ID: https://www.dianping.com/brands/{brandId}",
+              "type": "finder",
+              "selector": "div.txt > div.tit > a.shop-branch",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "outputPropertyName": "brandId",
+              "outputValueType": "string",
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
+              "hint": "only screen and (max-width: 640px)"
+            },
+            {
               "name": "获取店铺评分(0-5, 间距0.5)",
               "type": "finder",
               "selector": "div.txt > div.comment > div > div > span:nth-child(1)",
@@ -228,6 +239,33 @@
               "outputValueType": "map",
               "wrap": false,
               "steps": [
+                {
+                  "name": "获取评分(0.1间隔)",
+                  "type": "finder",
+                  "selector": "#basic-info > div.brief-info > div > div:nth-child(2)",
+                  "outputPropertyName": "score",
+                  "valueGetter": "text",
+                  "outputValueType": "number"
+                },
+                {
+                  "name": "获取店铺评论数",
+                  "type": "finder",
+                  "selector": "#reviewCount",
+                  "valueGetter": "text",
+                  "outputPropertyName": "commentQuantity",
+                  "outputValueType": "int",
+                  "hint": "详情页评论数可能与列表页评论数不一致",
+                  "valueConverter": "arg.substring(0, arg.length() - \"条评价\".length())"
+                },
+                {
+                  "name": "获取人均消费金额",
+                  "type": "finder",
+                  "selector": "#avgPriceTitle",
+                  "valueGetter": "text",
+                  "outputPropertyName": "meanPrice",
+                  "outputValueType": "number",
+                  "valueConverter": "arg.substring(\"人均：\".length(), arg.length() - \"元\".length())"
+                },
                 {
                   "name": "获取口味评价",
                   "type": "finder",
