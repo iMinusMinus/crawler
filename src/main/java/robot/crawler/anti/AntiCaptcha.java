@@ -88,6 +88,9 @@ public abstract class AntiCaptcha {
             double v = Imgproc.contourArea(mp);
             if (v > 8000) { //  图形大小多少合适(dianping为8352)
                 Rect rect = Imgproc.boundingRect(mp);
+//                Imgproc.rectangle(tmp, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(0, 255, 0), 2, Imgproc.LINE_8, 0);
+//                HighGui.imshow("rect", tmp);
+//                HighGui.waitKey();
                 log.debug("滑块图片高[{}]宽[{}]，滑块图形高[{}]宽[{}]，边距:{}", slide.height(), slide.width(), rect.height, rect.width, rect.x);
                 return new org.openqa.selenium.Point(slide.width() - rect.x - rect.width, slide.height() - rect.y - rect.height);
             }
@@ -138,7 +141,7 @@ public abstract class AntiCaptcha {
         if (!INITED.get()) {
             return;
         }
-        Point point = calculateDistance(slideToDragImg, backgroundImg, locXOffset, locYOffset);
+        org.openqa.selenium.Point point = calculateDistance(slideToDragImg, backgroundImg, locXOffset, locYOffset);
         double xOffset = (point.x + locXOffset) * scale, yOffset = (point.y + locYOffset) * scale;
         int deltaX = 0, deltaY = 0, times = 0;
         while (Math.abs(deltaX - xOffset) > xDeviation || Math.abs(deltaY - yOffset) > yDeviation) {
@@ -185,7 +188,7 @@ public abstract class AntiCaptcha {
         }
     }
 
-    /* test */ static Point calculateDistance(byte[] slideToDragImg, byte[] backgroundImg, int xOffset, int yOffset) {
+    /* test */ static org.openqa.selenium.Point calculateDistance(byte[] slideToDragImg, byte[] backgroundImg, int xOffset, int yOffset) {
         MatOfByte slideToDrag = new MatOfByte(slideToDragImg);
         MatOfByte backgroundToMatch = new MatOfByte(backgroundImg);
         Mat slide = Imgcodecs.imdecode(slideToDrag, Imgcodecs.IMREAD_COLOR);
@@ -193,17 +196,15 @@ public abstract class AntiCaptcha {
         Mat background = Imgcodecs.imdecode(backgroundToMatch, Imgcodecs.IMREAD_COLOR);
         log.debug("background width={}, height={}", background.width(), background.height());
 
-        Imgproc.GaussianBlur(slide, slide, new Size(15, 15), 0, 0, Core.BORDER_DEFAULT);
+        Imgproc.GaussianBlur(slide, slide, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
         Mat dragTmp = new Mat();
-        Imgproc.Canny(slide, dragTmp, 100, 100);
-//        HighGui.imshow("drag", dragTmp);
-//        HighGui.waitKey(0);
+        Imgproc.Canny(slide, dragTmp, 150, 300);
 
         // ksize越小细节越丰富，大于21时可能丢失所有细节
-        Imgproc.GaussianBlur(background, background, new Size(17, 17), 0, 0, Core.BORDER_DEFAULT);
+        Imgproc.GaussianBlur(background, background, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
         Mat bgTmp = new Mat();
-        Imgproc.Canny(background, bgTmp, 50, 100, 3);
-//        HighGui.imshow("bg", bgTmp);
+        Imgproc.Canny(background, bgTmp, 50, 100, 3); // threshold2太大会导致边界非常少
+//        HighGui.imshow("GaussianBlur_Canny_bg", bgTmp);
 //        HighGui.waitKey(0);
 
         Mat tmp = new Mat();
@@ -212,7 +213,7 @@ public abstract class AntiCaptcha {
         Core.MinMaxLocResult result = Core.minMaxLoc(tmp);
         log.info("max movement: {}, min movement:{}", result.maxLoc, result.minLoc);
         mask(background, slide, result.maxLoc, xOffset, yOffset, IMG_FORMAT.apply(slideToDragImg));
-        return result.maxLoc;
+        return new org.openqa.selenium.Point((int) result.maxLoc.x, (int) result.maxLoc.y);
     }
 
     private static void mask(Mat background, Mat slide, Point maxLoc, int xOffset, int yOffset, String imgFmt) {
@@ -220,10 +221,10 @@ public abstract class AntiCaptcha {
             Mat write = background.clone();
             Point end = new Point(maxLoc.x + slide.cols(), maxLoc.y + slide.rows());
             Imgproc.rectangle(write, maxLoc, end, new Scalar(0, 0, 255), 2, Imgproc.LINE_8, 0);
-//            HighGui.imshow("locate", write);
+//            HighGui.imshow("rectangle_locate", write);
 //            HighGui.waitKey(0);
             Imgproc.rectangle(write, new Point(maxLoc.x + xOffset, maxLoc.y + yOffset), new Point(end.x + xOffset, end.y + yOffset), new Scalar(0, 255, 0), 2, Imgproc.LINE_8, 0);
-//            HighGui.imshow("slide", write);
+//            HighGui.imshow("rectangle_slide", write);
 //            HighGui.waitKey(0);
 //            HighGui.destroyAllWindows();
             File tmpFile = null;

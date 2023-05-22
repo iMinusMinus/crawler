@@ -20,7 +20,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AntiCaptchaTest {
 
@@ -47,8 +49,8 @@ public class AntiCaptchaTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"b62bec6023a14afeb5813412c2e1acdd"})
-//    @Disabled
+    @ValueSource(strings = {"103a92913a6544a1b25ed806081476ab"})
+    @Disabled
     public void testDianping(String requestCode) throws Exception {
         WebDriver webDriver = new ChromeDriver();
         String startUrl = "https://verify.meituan.com/v2/web/general_page?action=spiderindefence&requestCode=" + requestCode + "&platform=1000&adaptor=auto&succCallbackUrl=https%3A%2F%2Foptimus-mtsi.meituan.com%2Foptimus%2FverifyResult%3ForiginUrl%3Dhttps%253A%252F%252Fwww.dianping.com%252F&theme=dianping";
@@ -68,16 +70,27 @@ public class AntiCaptchaTest {
         webDriver.quit();
     }
 
-    @Test
-    public void testDianpingLocal() {
-        try (FileInputStream fis1 = new FileInputStream("src/test/resources/dianping-puzzleImageMain.txt"); FileInputStream fis2 = new FileInputStream("src/test/resources/dianping-puzzleSliderDrag.txt")) {
+    @ParameterizedTest
+    @ValueSource(strings = {"", "2", "3", "4", "5"})
+    public void testDianpingLocal(String no) {
+        Map<String, Integer> maybe = new HashMap<>();
+        maybe.put("", 608); // x: 743~836, y: 314~407
+        maybe.put("2", 500); // x: 637~730, y: 474~567
+        maybe.put("3", 641);// x: 778~872, y: 367~461
+        maybe.put("4", 430);// x: 567~660, y: 46~139
+        maybe.put("5", 500);// x: 637~730, y: 421~514
+        try (FileInputStream fis1 = new FileInputStream("src/test/resources/dianping-puzzleImageMain%1$S.txt".formatted(no));
+             FileInputStream fis2 = new FileInputStream("src/test/resources/dianping-puzzleSliderDrag%1$S.txt".formatted(no))) {
             String bgBase64 = new String(fis1.readAllBytes());
             byte[] bs = Base64.getDecoder().decode(bgBase64.substring(27, bgBase64.length() - 2));
             String slideBase64 = new String(fis2.readAllBytes());
             byte[] ss = Base64.getDecoder().decode(slideBase64.substring(27, slideBase64.length() - 2));
             AntiCaptcha.setDebug(true);
             Point offset = AntiCaptcha.edgeOffset(ss);
-            AntiCaptcha.calculateDistance(ss, bs, -offset.x, -offset.y);
+            System.out.println(offset);
+            Point result = AntiCaptcha.calculateDistance(ss, bs, -offset.x, -offset.y);
+            System.out.println(result);
+            Assertions.assertTrue(Math.abs(result.x - maybe.get(no)) < 5);
         } catch (Exception e) {
             e.printStackTrace();
         }
