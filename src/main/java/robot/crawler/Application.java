@@ -205,7 +205,7 @@ public class Application {
         String to = commandArgs.getFeedback();
         long connectionTimeout = commandArgs.getConnectionTimeout();
         long readTimeout = commandArgs.getReadTimeout();
-        int maxTimes = commandArgs.getFetchTaskMaxTimes();
+        final int maxTimes = commandArgs.getFetchTaskMaxTimes();
         String preferExecutor = commandArgs.getExecutorType();
 
         String executorId = System.getProperty("user.name") + "@" + resolveHostName();
