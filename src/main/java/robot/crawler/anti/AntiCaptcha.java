@@ -54,6 +54,7 @@ public abstract class AntiCaptcha {
         try {
             System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
             INITED.compareAndSet(false, true);
+            log.debug("loaded opencv library from java.library.path");
         } catch (UnsatisfiedLinkError e) { // SecurityException ignore?
             log.warn("opencv library should export to environment PATH, try openpnp way\n {}", e.getMessage());
             // openpnp support
@@ -62,6 +63,7 @@ public abstract class AntiCaptcha {
                 Method loadJni = klazz.getDeclaredMethod("loadShared", new Class[0]); // 高版本JDK会自动切换到loadLocally
                 loadJni.setAccessible(true);
                 loadJni.invoke(klazz, new Object[0]);
+                log.debug("loaded opencv library from openpnp unzip temporary directory");
             } catch (Exception openpnp) {
                 log.error(openpnp.getMessage(), openpnp);
             }
@@ -191,15 +193,16 @@ public abstract class AntiCaptcha {
         Mat background = Imgcodecs.imdecode(backgroundToMatch, Imgcodecs.IMREAD_COLOR);
         log.debug("background width={}, height={}", background.width(), background.height());
 
-        Imgproc.GaussianBlur(slide, slide, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
+        Imgproc.GaussianBlur(slide, slide, new Size(15, 15), 0, 0, Core.BORDER_DEFAULT);
         Mat dragTmp = new Mat();
         Imgproc.Canny(slide, dragTmp, 100, 100);
 //        HighGui.imshow("drag", dragTmp);
 //        HighGui.waitKey(0);
 
-        Imgproc.GaussianBlur(background, background, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
+        // ksize越小细节越丰富，大于21时可能丢失所有细节
+        Imgproc.GaussianBlur(background, background, new Size(17, 17), 0, 0, Core.BORDER_DEFAULT);
         Mat bgTmp = new Mat();
-        Imgproc.Canny(background, bgTmp, 50, 100);
+        Imgproc.Canny(background, bgTmp, 50, 100, 3);
 //        HighGui.imshow("bg", bgTmp);
 //        HighGui.waitKey(0);
 
