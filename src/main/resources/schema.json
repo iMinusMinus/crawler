@@ -1,4 +1,7 @@
 {
+  "$schema":"http://json-schema.org/draft-04/schema#",
+  "title": "crawler task definition",
+  "description": "crawler task setting and task steps",
   "type": "object",
   "required": ["id", "url", "settings", "steps"],
   "properties": {
@@ -23,76 +26,6 @@
           "type": "boolean",
           "hint": "if set true, program exit without quit webdriver"
         },
-        "location": {
-          "type": "object",
-          "required": ["latitude", "longitude", "accuracy"],
-          "properties": {
-            "cityName": {
-              "type": "string"
-            },
-            "acceptLanguage": {
-              "type": "string"
-            },
-            "latitude": {
-              "type": "number"
-            },
-            "longitude": {
-              "type": "number"
-            },
-            "accuracy": {
-              "type": "number"
-            }
-          }
-        },
-        "device": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "width": {
-              "type": "number"
-            },
-            "height": {
-              "type": "number"
-            },
-            "pixRatio": {
-              "type": "number"
-            },
-            "userAgent": {
-              "type": "string"
-            },
-            "isMobile": {
-              "type": "boolean"
-            },
-            "touchable": {
-              "type": "boolean"
-            },
-            "brandName": {
-              "type": "string"
-            },
-            "brandVersion": {
-              "type": "string"
-            },
-            "fullBrowserVersion": {
-              "type": "string"
-            },
-            "platformName": {
-              "type": "string",
-              "enum": ["Windows", "GNU/Linux", "MacOS", "Android", "iOS"]
-            },
-            "platformVersion": {
-              "type": "string"
-            },
-            "architecture": {
-              "type": "string",
-              "enum": ["x86", "amd64", "armv7", "armv8"]
-            },
-            "model": {
-              "type": "string"
-            }
-          }
-        },
         "browserName": {
           "type": "string",
           "enum": ["chrome", "msedge", "firefox", "opera", "safari", "internet explorer"]
@@ -116,22 +49,16 @@
             }
           }
         },
-        "android": {
+        "capabilities": {
           "type": "object",
           "properties": {
-            "packageName": {
+            "browserVersion": {
               "type": "string"
             },
-            "activityName": {
+            "platformName": {
               "type": "string"
             },
-            "serial": {
-              "type": "string"
-            },
-            "attachToRunningApp": {
-              "type": "boolean"
-            },
-            "options": {
+            "goog:chromeOptions": {
               "type": "object"
             }
           }

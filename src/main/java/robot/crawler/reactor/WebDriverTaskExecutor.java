@@ -5,20 +5,13 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.chromium.ChromiumOptions;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.v110.emulation.Emulation;
-import org.openqa.selenium.devtools.v110.emulation.model.UserAgentBrandVersion;
-import org.openqa.selenium.devtools.v110.emulation.model.UserAgentMetadata;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.remote.AbstractDriverOptions;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.events.EventFiringDecorator;
-import robot.crawler.spec.Device;
 import robot.crawler.spec.ForceStopException;
-import robot.crawler.spec.Location;
 import robot.crawler.spec.Step;
 import robot.crawler.spec.TaskExecutor;
 import robot.crawler.spec.TaskSettingDefinition;
@@ -57,49 +50,9 @@ public class WebDriverTaskExecutor implements TaskExecutor {
             throw new IllegalArgumentException("当前仅支持chrome、edge，请联系开发者");
         }
         context = new Context<>(true);
+        // devTools should be opened after get url, and command sent by devTools could not affect other window/tab
         webDriver = new EventFiringDecorator(new WebDriverWindowsEventListener(context), new WebDriverErrorEventListener())
                 .decorate(delegate);
-        if (webDriver instanceof ChromiumDriver chromium) {
-            DevTools devTools = chromium.getDevTools();
-            devTools.createSession();
-//            devTools.addListener();
-            Device device = settings.device();
-            if (device != null ) {
-                if (device.width() != null && device.height() != null
-                        && device.pixRatio() != null && device.isMobile() != null) {
-                    devTools.send(Emulation.setDeviceMetricsOverride(device.width(), device.height(), device.pixRatio(),
-                            device.isMobile(),
-                            Optional.empty(), Optional.empty(), Optional.empty(),
-                            Optional.empty(), Optional.empty(),
-                            Optional.empty(),
-                            Optional.empty(), Optional.empty(), Optional.empty()));
-                }
-                UserAgentMetadata userAgentMetadata = null;
-                if (device.platformName() != null && device.platformVersion() != null && device.architecture() != null
-                        && device.model() != null && device.isMobile() != null) {
-                    UserAgentBrandVersion brand = device.brandName() != null && device.brandVersion() != null ?
-                            new UserAgentBrandVersion(device.brandName(), device.brandVersion()) : null;
-                    userAgentMetadata = new UserAgentMetadata(brand != null ? Optional.of(List.of(brand)) : Optional.empty(),
-                            Optional.empty(),
-                            Optional.ofNullable(device.fullBrowserVersion()),
-                            device.platformName(), device.platformVersion(),
-                            device.architecture(),
-                            device.model(), device.isMobile(), Optional.empty(), Optional.empty());
-                }
-                if (device.userAgent() != null) {
-                    devTools.send(Emulation.setUserAgentOverride(device.userAgent(),
-                            Optional.ofNullable(settings.location()).map(Location::acceptLanguage),
-                            Optional.ofNullable(device.platformName()),
-                            Optional.ofNullable(userAgentMetadata)));
-                }
-            }
-            Location location = settings.location();
-            if (location != null) {
-                devTools.send(Emulation.setGeolocationOverride(Optional.ofNullable(location.latitude()),
-                        Optional.ofNullable(location.longitude()),
-                        Optional.ofNullable(location.accuracy())));
-            }
-        }
         // as webdriver inject to StepHandler, factory lifecycle keep same with webdriver, or
         // org.openqa.selenium.NoSuchSessionException: Session ID is null. Using WebDriver after calling quit()
         webDriverStepHandlerFactory = new WebDriverStepHandlerFactory();
@@ -136,17 +89,12 @@ public class WebDriverTaskExecutor implements TaskExecutor {
                     chromiumOptions.setExperimentalOption(entry.getKey(), entry.getValue());
                 }
             }
-            if (settings.android() != null) {
-                Optional.ofNullable(settings.android().packageName()).ifPresent(chromiumOptions::setAndroidPackage);
-                Optional.ofNullable(settings.android().activityName()).ifPresent(chromiumOptions::setAndroidActivity);
-                Optional.ofNullable(settings.android().serial()).ifPresent(chromiumOptions::setAndroidDeviceSerialNumber);
-                Optional.ofNullable(settings.android().attachToRunningApp()).ifPresent(chromiumOptions::setUseRunningAndroidApp);
-                Optional.ofNullable(settings.android().options()).ifPresent(m -> {
-                    for (Map.Entry<String, Object> e : m.entrySet()) {
-                        chromiumOptions.setCapability(e.getKey(), e.getValue());
-                    }
-                });
+            if (settings.capabilities() != null && !settings.capabilities().isEmpty()) {
+                for (Map.Entry<String, Object> entry : settings.capabilities().entrySet()) {
+                    chromiumOptions.setCapability(entry.getKey(), entry.getValue());
+                }
             }
+            // android emulation requires adb
         }
     }
 
