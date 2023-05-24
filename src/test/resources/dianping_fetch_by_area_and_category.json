@@ -296,10 +296,10 @@
                   "type": "finder",
                   "selector": "#reviewCount",
                   "valueGetter": "text",
-                  "outputPropertyName": "commentQuantity",
+                  "outputPropertyName": "reviewCount",
                   "outputValueType": "int",
                   "hint": "详情页评论数可能与列表页评论数不一致",
-                  "valueConverter": "arg.substring(0, arg.length() - \"条评价\".length())"
+                  "valueConverter": "arg.substring(0, arg.length() - \"条评价\".length()).trim()"
                 },
                 {
                   "name": "获取人均消费金额",
@@ -311,31 +311,30 @@
                   "valueConverter": "arg.substring(\"人均：\".length(), arg.length() - \"元\".length())"
                 },
                 {
-                  "name": "获取口味评价",
-                  "type": "finder",
-                  "selector": "#comment_score > span:nth-child(1)",
-                  "outputPropertyName": "tasteScore",
-                  "valueGetter": "text",
-                  "outputValueType": "string",
-                  "valueConverter": "\"口味：-\".equals(arg) ? null : arg.split(\"：\")[1]"
+                  "id": "score-component",
+                  "name": "定位分类评价",
+                  "type": "locator",
+                  "selector": "#comment_score > span",
+                  "multi": true,
+                  "hint": "分类不固定，美食一般是口味、环境、服务，休闲娱乐可能是酒水、氛围、服务"
                 },
                 {
-                  "name": "获取环境评价",
-                  "type": "finder",
-                  "selector": "#comment_score > span:nth-child(2)",
-                  "outputPropertyName": "environmentScore",
-                  "valueGetter": "text",
-                  "outputValueType": "string",
-                  "valueConverter": "\"环境：-\".equals(arg) ? null : arg.split(\"：\")[1]"
-                },
-                {
-                  "name": "获取服务评价",
-                  "type": "finder",
-                  "selector": "#comment_score > span:nth-child(3)",
-                  "outputPropertyName": "serviceScore",
-                  "valueGetter": "text",
-                  "outputValueType": "string",
-                  "valueConverter": "\"服务：-\".equals(arg) ? null : arg.split(\"：\")[1]"
+                  "name": "分类评价处理",
+                  "type": "box",
+                  "target": "score-component",
+                  "outputPropertyName": "scoreComponents",
+                  "outputValueType": "list",
+                  "wrap": false,
+                  "steps": [
+                    {
+                      "name": "获取分类评价",
+                      "type": "finder",
+                      "xpath": ".",
+                      "valueGetter": "text",
+                      "outputValueType": "map",
+                      "valueConverter": "java.util.Map.of(arg.split(\"[：:]\")[0], arg.split(\"[：:]\")[1].trim().replaceAll(\"-\",\"\"))"
+                    }
+                  ]
                 },
                 {
                   "name": "获取地址",
