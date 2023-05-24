@@ -31,7 +31,9 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class Application {
 
@@ -217,7 +219,7 @@ public class Application {
 
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(connectionTimeout)).build();
         authorizationToken = Optional.ofNullable(System.getenv(AUTHORIZATION_ENV_KEY))
-                .map(t -> t.toCharArray())
+                .map(String::toCharArray)
                 .orElse(new char[0]);
 
 
@@ -227,6 +229,8 @@ public class Application {
         TaskDefinition retryTask = null;
 
         int times = 0;
+
+        CompletableFuture<Void> out = null;
 
         while(times < maxTimes || maxTimes < 0) {
             try {
@@ -248,18 +252,19 @@ public class Application {
                         (disableJsoup ? Register.EXECUTOR_WEBDRIVER : Register.EXECUTOR_JSOUP);
                 TaskExecutor taskExecutor = Register.getApplicationScopeObject(executorType, TaskExecutor.class);
 
-                feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
+                CompletableFuture<Void> init = feedback(to, new Progress(task.id(), "ACCEPT", executorId, System.currentTimeMillis(), 0), readTimeout);
 
                 Result crawResult = taskExecutor.execute(task);
 
-                feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
+                CompletableFuture<Void> executed = feedback(to, new Progress(task.id(), "CRAW_FINISH", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
 
-                pushResult(destination, crawResult, readTimeout);
+                CompletableFuture<Void> submitted = pushResult(destination, crawResult, readTimeout);
 
-                feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
+                CompletableFuture<Void> uploaded = feedback(to, new Progress(task.id(), "UPLOADED", executorId, System.currentTimeMillis(), crawResult.data().size()), readTimeout);
 
                 // wait async http request execute success
-                Thread.currentThread().join(readTimeout);
+                CompletableFuture<Void> asyncResult = CompletableFuture.allOf(init, executed, submitted, uploaded);
+                asyncResult.get(readTimeout, TimeUnit.MILLISECONDS);
 
                 disableJsoup = false;
                 if (!crawResult.corrupt()) {
@@ -267,6 +272,7 @@ public class Application {
                 }
 
             } catch (VerifyStopException vse) {
+                out = feedback(to, new Progress(Optional.ofNullable(retryTask).map(TaskDefinition::id).orElse(null), "ACCOUNT_VERIFY", executorId, System.currentTimeMillis(), 0), readTimeout);
                 if (disableJsoup) {
                     log.warn("jsoup request fail too many times! try not set -e or '--executor', and let program choose!");
                     break;
@@ -274,9 +280,11 @@ public class Application {
                 disableJsoup = true;
             } catch (ForceStopException fte) {
                 log.error("force stop, exit now!");
+                out = feedback(to, new Progress(Optional.ofNullable(retryTask).map(TaskDefinition::id).orElse(null), "ACCOUNT_FORBIDDEN", executorId, System.currentTimeMillis(), 0), readTimeout);
                 break;
             } catch (Exception ignore) {
                 log.error(ignore.getMessage(), ignore);
+                out = feedback(to, new Progress(Optional.ofNullable(retryTask).map(TaskDefinition::id).orElse(null), "UNKNOWN_EXCEPTION", executorId, System.currentTimeMillis(), 0), readTimeout);
             }
 
             times++;
@@ -287,6 +295,9 @@ public class Application {
         }
 
         Register.destroy();
+        if (out != null && !out.isDone() && !out.isCancelled() && !out.isCompletedExceptionally()) {
+            out.get(readTimeout, TimeUnit.MILLISECONDS);
+        }
     }
 
     private static String resolveHostName() {
@@ -343,17 +354,17 @@ public class Application {
         return null;
     }
 
-    private static void feedback(String to, Progress progress, long readTimeout) throws Exception {
+    private static CompletableFuture<Void> feedback(String to, Progress progress, long readTimeout) throws Exception {
+        log.info("task progress: {}", progress);
         if (to != null && (to.startsWith(HTTP_PROTOCOL) || to.startsWith(HTTPS_PROTOCOL))) {
             HttpRequest request = makeRequest(false, to, progress, readTimeout);
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                    .thenAccept(x -> log.debug("feedback to [{}] and response status: {}", to, x.statusCode()));
-        } else {
-            log.info("task progress: {}", progress);
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .thenAccept(x -> log.info("feedback to [{}] and response status: {}", to, x.statusCode()));
         }
+        return CompletableFuture.completedFuture(null);
     }
 
-    private static void pushResult(String destination, Result crawResult, long readTimeout) throws Exception {
+    private static CompletableFuture<Void> pushResult(String destination, Result crawResult, long readTimeout) throws Exception {
         if (destination.startsWith(FILE_PROTOCOL)) {
             String destFile = destination;
             File dest = new File(destination.substring(FILE_PROTOCOL.length()));
@@ -365,9 +376,10 @@ public class Application {
             }
         } else if (destination.startsWith(HTTP_PROTOCOL) || destination.startsWith(HTTPS_PROTOCOL)) {
             HttpRequest request = makeRequest(false, destination, crawResult, readTimeout);
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                     .thenAccept(x -> log.info("submit result to [{}] and response status: {}", destination, x.statusCode()));
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     private static HttpRequest makeRequest(boolean get, String url, Object data, long readTimeout) throws Exception {
