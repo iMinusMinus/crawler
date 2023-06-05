@@ -13,6 +13,7 @@ import robot.crawler.spec.VerifyStopException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,13 +29,16 @@ public class JsoupTaskExecutor implements TaskExecutor {
 
     protected Document doc;
 
+    private static final String USER_AGENT = "--user-agent";
+
     @Override
     public void setUp(TaskSettingDefinition settings) {
         debug = settings.debug();
         connection = new HttpConnection();
         connection.ignoreHttpErrors(true);
-        if (settings.device() != null && settings.device().userAgent() != null) {
-            connection.userAgent(settings.device().userAgent());
+        if (settings.arguments() != null) {
+            Arrays.stream(settings.arguments()).filter(t -> t.startsWith(USER_AGENT)).findFirst()
+                    .map(x -> connection.userAgent(x.split(HttpSupport.KEY_VALUE_SEPARATOR)[1]));
         }
         if (Proxy.Type.HTTP.name().equalsIgnoreCase(settings.proxyType())) {
             String[] proxy = settings.proxyValue().split(":");

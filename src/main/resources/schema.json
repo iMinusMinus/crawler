@@ -20,7 +20,7 @@
     },
     "settings": {
       "type": "object",
-      "required": ["browserName", "arguments"],
+      "required": ["browserName"],
       "properties": {
         "debug": {
           "type": "boolean",
@@ -36,7 +36,14 @@
             "type": "string",
             "pattern": "^--[a-zA-Z0-9]+=?[a-zA-Z0-9]+$"
           },
-          "examples": ["--headless=new", "--no-sandbox", "--remote-allow-origins=*"]
+          "examples": [
+            "--headless=new",
+            "--no-sandbox",
+            "--remote-allow-origins=*",
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.50",
+            "--auto-open-devtools-for-tabs",
+            "--disable-blink-features=AutomationControlled"
+          ]
         },
         "experimentalOptions": {
           "type": "object",
@@ -45,6 +52,31 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            },
+            "mobileEmulation": {
+              "type": "object",
+              "properties": {
+                "deviceName": {
+                  "type": "string"
+                },
+                "userAgent": {
+                  "type": "string"
+                },
+                "deviceMetrics": {
+                  "type": "object",
+                  "properties": {
+                    "width": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    },
+                    "pixelRatio": {
+                      "type": "number"
+                    }
+                  }
+                }
               }
             }
           }
@@ -125,6 +157,10 @@
             "type": "string",
             "hint": "循环内注意选择器的使用，不要误选择了所有"
           },
+          "escapeScope": {
+            "type": "boolean",
+            "hint": "sibling may share context, but this step DO NOT use current context scope element"
+          },
           "multi": {
             "type": "boolean"
           },
@@ -159,6 +195,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "shortcut": {
+            "type": "string",
+            "hint": "janino expression for jsoup"
           },
           "inputValue": {
             "type": "string"

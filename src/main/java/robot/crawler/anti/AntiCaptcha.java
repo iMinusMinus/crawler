@@ -86,13 +86,13 @@ public abstract class AntiCaptcha {
         log.debug("检测出矩形数量：{}", list.size());
         for (MatOfPoint mp : list) {
             double v = Imgproc.contourArea(mp);
-            if (v > 8000) { //  图形大小多少合适(dianping为8352)
+            if (v > 8000 && v < slide.width() * slide.height()) { //  图形大小多少合适(dianping为8352)
                 Rect rect = Imgproc.boundingRect(mp);
 //                Imgproc.rectangle(tmp, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(0, 255, 0), 2, Imgproc.LINE_8, 0);
 //                HighGui.imshow("rect", tmp);
 //                HighGui.waitKey();
                 log.debug("滑块图片高[{}]宽[{}]，滑块图形高[{}]宽[{}]，边距:{}", slide.height(), slide.width(), rect.height, rect.width, rect.x);
-                return new org.openqa.selenium.Point(slide.width() - rect.x - rect.width, slide.height() - rect.y - rect.height);
+                return new org.openqa.selenium.Point(rect.x, rect.y);
             }
         }
         log.info("未找到合适的矩形");
@@ -102,9 +102,8 @@ public abstract class AntiCaptcha {
     public static void passThroughSlideCaptcha(WebDriver webDriver, byte[] slideToDragImg, byte[] backgroundImg, double scale,
                                                int locXOffset) {
         passThroughSlideCaptcha(webDriver, slideToDragImg, backgroundImg, scale, locXOffset, 0,
-                10, 100, 1,
-                -5, 5, Integer.MAX_VALUE,
-                5, 0.75, 300);
+                5, 1, 20, ThreadLocalRandom.current().nextInt(500, 2000), 0.75d, 0.2d,
+                0, 5);
     }
 
     /**
@@ -119,64 +118,53 @@ public abstract class AntiCaptcha {
      * @param backgroundImg 背景图
      * @param scale 图形缩放倍数
      * @param locXOffset 小图基于匹配位置仍存在的水平偏移
+     * @param xDeviation 水平随机扰动距离
      * @param locYOffset 小图基于匹配位置仍存在的垂直偏移
-     * @param minXMovement 水平最小位移
-     * @param maxXMovement 水平最大位移
-     * @param xDeviation 水平移动距离与匹配距离容忍的误差
-     * @param minYMovement  垂直最小位移
-     * @param maxYMovement  垂直最大位移
-     * @param yDeviation  垂直移动距离与匹配距离容忍的误差
-     * @param cooldown 每次移动停顿时间
+     * @param yDeviation 垂直随机扰动
+     * @param interval 间隔时间
+     * @param slidingTime 滑动时间
      * @param speedBump 移动到此比例减速（移动距离减少，停顿时间增加）
-     * @param thinkTime 减速后的每次停顿时间
+     * @param speedUpTimeRate 加速时间占比
+     * @param timeOffset 初始时间偏移（模拟思考时间）
+     * @param timeDeviation 每个时间单位的时间扰动
      */
     public static void passThroughSlideCaptcha(WebDriver webDriver, byte[] slideToDragImg, byte[] backgroundImg, double scale,
-                                               int locXOffset, int locYOffset,
-                                               int minXMovement, int maxXMovement, int xDeviation,
-                                               int minYMovement, int maxYMovement, int yDeviation,
-                                               int cooldown, double speedBump, int thinkTime) {
+                                               int locXOffset, int locYOffset, int xDeviation, int yDeviation,
+                                               int interval, int slidingTime,
+                                               double speedBump, double speedUpTimeRate, int timeOffset, int timeDeviation) {
         if (xDeviation < 1 || yDeviation < 1 || scale < 0) {
             throw new IllegalArgumentException("误差至少1像素，缩放不能为负");
         }
         if (!INITED.get()) {
             return;
         }
-        org.openqa.selenium.Point point = calculateDistance(slideToDragImg, backgroundImg, locXOffset, locYOffset);
-        double xOffset = (point.x + locXOffset) * scale, yOffset = (point.y + locYOffset) * scale;
-        int deltaX = 0, deltaY = 0, times = 0;
-        while (Math.abs(deltaX - xOffset) > xDeviation || Math.abs(deltaY - yOffset) > yDeviation) {
-            int xMovement = ThreadLocalRandom.current().nextInt(minXMovement, maxXMovement);
-            if (Math.abs(xOffset) > 1 && deltaX > xOffset) { // 小于1则视为无需移动，滑过头则往回滑
-                xMovement = -xMovement;
-            }
-            int yMovement = ThreadLocalRandom.current().nextInt(minYMovement, maxYMovement);
-            if (Math.abs(yOffset) > 1 && deltaY > yOffset) {
-                yMovement = - yMovement;
-            }
-            if (times >= 3) { // 多次后强制滑动到位
-                if (Math.abs(xOffset) > 1 && Math.abs(deltaX -xOffset) < maxXMovement) {
-                    xMovement = (int) (xOffset - deltaX);
-                    yMovement = Math.abs(yOffset) < 1 ? (int) (yOffset - deltaY) : yMovement;
-                }
-                if (Math.abs(yOffset) > 1 && Math.abs(deltaY - yOffset) < maxYMovement) {
-                    yMovement = (int) (yOffset - deltaY);
-                    xMovement = Math.abs(xOffset) < 1 ? (int) (xOffset - deltaX) : xMovement;
-                }
-            }
+        MatOfByte slideToDrag = new MatOfByte(slideToDragImg);
+        MatOfByte backgroundToMatch = new MatOfByte(backgroundImg);
+        Mat slide = Imgcodecs.imdecode(slideToDrag, Imgcodecs.IMREAD_COLOR);
+        Mat background = Imgcodecs.imdecode(backgroundToMatch, Imgcodecs.IMREAD_COLOR);
+        org.openqa.selenium.Point point = calculateDistance(slide, background, locXOffset, locYOffset, IMG_FORMAT.apply(backgroundImg));
+        org.openqa.selenium.Point target = new org.openqa.selenium.Point((int) (point.x * scale), (int) (point.y * scale));
+        org.openqa.selenium.Point border = new org.openqa.selenium.Point((int) (background.width() * scale), (int) (background.height() * scale));
+        int[][] tracks = generateTrack(target, interval, slidingTime, border,
+                speedBump, speedUpTimeRate, timeOffset, timeDeviation, locXOffset, xDeviation, locYOffset, yDeviation);
+        slideFollowTrack(webDriver, tracks, timeOffset);
+    }
 
+    public static void slideFollowTrack(WebDriver webDriver, int[][] tracks, int timeOffset) {
+        long now = System.currentTimeMillis();
+        for (int i =0; i < tracks.length; i++) {
+            int[] track = tracks[i];
+            int xMovement = i == 0 ? track[1] : track[1] - tracks[i - 1][1];
+            int yMovement = i == 0 ? track[2] : track[2] - tracks[i - 1][2];
             new Actions(webDriver).moveByOffset(xMovement, yMovement).perform();
-
-            deltaX += xMovement;
-            deltaY += yMovement;
-
-            if (deltaX / xOffset >= speedBump) { // 减速
-                maxXMovement = (int) Math.max(Math.min(Math.abs(deltaX - xOffset) / 2, maxXMovement), minXMovement + 1);
-                maxYMovement = (int) Math.max(Math.min(Math.abs(deltaY - yOffset) / 2, maxYMovement), minYMovement + 1);
-                sleep(thinkTime * Math.sqrt(times));
-            } else {
-                sleep(cooldown * Math.sqrt(times));
+            long elapsed = System.currentTimeMillis() - now;
+            long estimateElapsed = track[0] - timeOffset;
+            // elapsed time should near estimate
+            if (elapsed - estimateElapsed > 15) {
+                log.warn("slide time exceed estimate: {}ms", elapsed - estimateElapsed);
+            } else if (estimateElapsed - elapsed > 15) {
+                sleep(estimateElapsed - elapsed);
             }
-            times++;
         }
     }
 
@@ -188,13 +176,99 @@ public abstract class AntiCaptcha {
         }
     }
 
-    /* test */ static org.openqa.selenium.Point calculateDistance(byte[] slideToDragImg, byte[] backgroundImg, int xOffset, int yOffset) {
+    public static int[][] generateTrack(org.openqa.selenium.Point target, org.openqa.selenium.Point border,
+                                        int xOffset, int yOffset) {
+        return generateTrack(target, 20, ThreadLocalRandom.current().nextInt(500, 1500), border,
+                0.75, 0.2, ThreadLocalRandom.current().nextInt(1000, 3000), 0, xOffset, 0, yOffset, 0);
+    }
+
+    /**
+     * 生成滑动轨迹
+     * @param target 目标点
+     * @param interval 轨迹间隔时间（毫秒）
+     * @param slidingTime 滑动时间（毫秒）
+     * @param border 边界
+     * @param speedBump 加速距离占比
+     * @param speedUpCostTimeRate 加速时间占比
+     * @param coldStartTime 时间整体偏移
+     * @param timeDeviation 每次时间扰动（毫秒）
+     * @param xOffset 初始水平偏移
+     * @param xDeviation 每次x轴扰动
+     * @param yOffset 初始垂直偏移
+     * @param yDeviation 每次y轴扰动
+     * @return [[timeOffset, x, y], ...]
+     */
+    public static int[][] generateTrack(org.openqa.selenium.Point target, int interval, int slidingTime, org.openqa.selenium.Point border,
+                                        double speedBump, double speedUpCostTimeRate,
+                                        int coldStartTime, int timeDeviation,
+                                        int xOffset, int xDeviation,
+                                        int yOffset, int yDeviation) {
+        assert timeDeviation < interval;
+        assert speedBump > 0 && speedBump < 1;
+        assert speedUpCostTimeRate > 0 && speedUpCostTimeRate < 1;
+        int steps = slidingTime / interval;
+        int[][] track = new int[steps][3];
+        boolean overhead = ThreadLocalRandom.current().nextBoolean();
+        double exceedRate = Math.min(1.15d, (double) border.x / (double) target.x); // 不能超出背景图边界
+        double targetX = overhead ? target.x * ThreadLocalRandom.current().nextDouble(1d, exceedRate) : target.x;
+        int speedUpDistance = (int) (targetX * speedBump);
+        int fastSteps = (int) (steps * speedUpCostTimeRate);
+        int speedUpTime = (int) (slidingTime * speedUpCostTimeRate);
+        double a = speedUpDistance * 2d/ (speedUpTime * speedUpTime);
+        int timeUnit = speedUpTime/ fastSteps;
+        log.debug("time offset: {}, expect speed up distance: {}, expect speed up cost time: {}", coldStartTime, speedUpDistance, speedUpTime);
+        for (int i = 0; i < fastSteps; i++) {
+            int time = timeDeviation <= 0 ? 0 : ThreadLocalRandom.current().nextInt(0, timeDeviation);
+            track[i][0] = time + timeUnit + ( i == 0 ? coldStartTime : track[i - 1][0]);
+            int x = xDeviation <= 0 ? 0 : ThreadLocalRandom.current().nextInt(0, xDeviation);
+            track[i][1] = xOffset + (int) (a * (track[i][0] - coldStartTime) * (track[i][0] - coldStartTime) / 2) + x;
+            int y = yDeviation <= 0 ? 0 : ThreadLocalRandom.current().nextInt(0, yDeviation);
+            track[i][2] = y + ( i == 0 ? yOffset : track[i - 1][2]);
+        }
+        if (fastSteps == steps) {
+            return track;
+        }
+        log.debug("fast move '{}' step, pause at point: {}", fastSteps, track[fastSteps - 1]);
+        boolean beyond = false;
+        timeUnit = (slidingTime - speedUpTime) / (steps - fastSteps);
+        int surplus = (int) (targetX - speedUpDistance + fastSteps - steps); // 假设每个间隔时间最小1单位距离时，多出的距离再分配
+        log.debug("expect slow park step: {}, expect park point: {}", steps - fastSteps, target);
+        for (int i = fastSteps; i < steps; i++) {
+            // 逐渐减小随机干扰
+            timeDeviation = timeDeviation / (fastSteps + i);
+            xDeviation = Math.min(surplus / 2, track[i - 1][1] - track[i - 2][1]); // 不大于上一步距离，不大于待分配一半
+            yDeviation = yDeviation / (fastSteps + i);
+
+            int lowBound = surplus / (steps - fastSteps) + xDeviation / 2; // 越靠前距离越大
+
+            int time = timeDeviation <= 0 ? 0 : ThreadLocalRandom.current().nextInt(0, timeDeviation);
+            track[i][0] = track[i - 1][0] + timeUnit + time;
+            int x = xDeviation <= lowBound
+                    ? (xDeviation > 1 ? ThreadLocalRandom.current().nextInt(xDeviation / 2, xDeviation) : xDeviation)
+                    : ThreadLocalRandom.current().nextInt(lowBound, xDeviation); // 不小于平均再分配，保证能分配完
+            surplus -= x;
+            int distance = (i == fastSteps ? speedUpDistance : track[i - 1][1]) + 1 + x;
+            track[i][1] = beyond ? (int) (2 * targetX - distance) : Math.min(distance, border.x); // 滑超返回
+            if (track[i][1] >= (int) targetX) {
+                beyond = true;
+            }
+            int y = yDeviation <= 0 ? 0 : ThreadLocalRandom.current().nextInt(0, yDeviation);
+            track[i][2] = y + track[i - 1][2];
+        }
+        log.debug("expect time: {}, expect target: {}, last track point: {}", slidingTime, target, track[track.length - 1]);
+        return track;
+    }
+
+    /* test */static org.openqa.selenium.Point calculateDistance(byte[] slideToDragImg, byte[] backgroundImg, int xOffset, int yOffset) {
         MatOfByte slideToDrag = new MatOfByte(slideToDragImg);
         MatOfByte backgroundToMatch = new MatOfByte(backgroundImg);
         Mat slide = Imgcodecs.imdecode(slideToDrag, Imgcodecs.IMREAD_COLOR);
-        log.debug("slide width={}, height={}", slide.width(), slide.height());
         Mat background = Imgcodecs.imdecode(backgroundToMatch, Imgcodecs.IMREAD_COLOR);
-        log.debug("background width={}, height={}", background.width(), background.height());
+        return calculateDistance(slide, background, xOffset, yOffset, IMG_FORMAT.apply(slideToDragImg));
+    }
+
+     static org.openqa.selenium.Point calculateDistance(Mat slide, Mat background, int xOffset, int yOffset, String format) {
+        log.debug("slide width={}, height={}. background width={}, height={}", slide.width(), slide.height(), background.width(), background.height());
 
         Imgproc.GaussianBlur(slide, slide, new Size(9, 9), 0, 0, Core.BORDER_DEFAULT);
         Mat dragTmp = new Mat();
@@ -212,7 +286,7 @@ public abstract class AntiCaptcha {
         Core.normalize(tmp, tmp, 0, 1, Core.NORM_MINMAX, -1, new Mat());
         Core.MinMaxLocResult result = Core.minMaxLoc(tmp);
         log.info("max movement: {}, min movement:{}", result.maxLoc, result.minLoc);
-        mask(background, slide, result.maxLoc, xOffset, yOffset, IMG_FORMAT.apply(slideToDragImg));
+        mask(background, slide, result.maxLoc, xOffset, yOffset, format);
         return new org.openqa.selenium.Point((int) result.maxLoc.x, (int) result.maxLoc.y);
     }
 

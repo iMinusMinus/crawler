@@ -4,13 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.openqa.selenium.By;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.crawler.reactor.HttpSupport;
@@ -20,7 +17,6 @@ import robot.crawler.spec.VerifyStopException;
 import java.io.ByteArrayOutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -196,22 +192,8 @@ public abstract class AntiDianPingAntiCrawler {
         long notifyIntervalInMilliseconds = 5 * 60 * 1000;
         while(times < (waitTimeInMilliseconds / sleepTimeInMilliseconds) && !is(webDriver, expect, not)) {
             try {
-                new FluentWait<>(webDriver).withTimeout(Duration.ofMillis(10000))
-                        .ignoring(NoSuchElementException.class)
-                        .until(ExpectedConditions.visibilityOfElementLocated(By.id("puzzleSliderDrag")));
-                WebElement sliderDrag = webDriver.findElement(By.id("puzzleSliderDrag")); // 滑动匹配图
-                log.info("slider image background-size: {}", sliderDrag.getCssValue(BG_SIZE_CSS_PROPERTY));
-                WebElement main = webDriver.findElement(By.id("puzzleImageMain")); // 背景图
-                log.info("background image background-size: {}", main.getCssValue(BG_SIZE_CSS_PROPERTY));
-                WebElement draggable = webDriver.findElement(By.id("puzzleSliderBox")); // puzzleSliderMoveingBar, 拖动条
-                new Actions(webDriver).clickAndHold(draggable).perform();
-                // 点评滑块人眼大小远小于占据大小（5.831em * 13.875em），背景图为18.5em * 13.875em = 296 * 222，font-size为16px，实际缩放成原图的1/3了！
-                // 点评滑块每次视野位置不同，固定水平位移失效
-                byte[] slideImg = parseImgFromElement(sliderDrag);
-                Point offset = AntiCaptcha.edgeOffset(slideImg);
-                AntiCaptcha.passThroughSlideCaptcha(webDriver, slideImg, parseImgFromElement(main), 1d/3d, -offset.x);
-                new Actions(webDriver).release(draggable).perform();
-                if (is(webDriver, expect, not)) {
+                boolean cracked = tryCrackSlideCaptcha(webDriver);
+                if (cracked || is(webDriver, expect, not)) {
                     log.info("滑块验证通过");
                     break;
                 }
@@ -227,6 +209,46 @@ public abstract class AntiDianPingAntiCrawler {
         if (times >= (waitTimeInMilliseconds / sleepTimeInMilliseconds)) {
             throw new ForceStopException("waiting too long for verification, exit now");
         }
+    }
+
+    private static boolean tryCrackSlideCaptcha(WebDriver webDriver) {
+        List<WebElement> puzzleSlideDrag = webDriver.findElements(By.id("puzzleSliderDrag"));
+        if (!puzzleSlideDrag.isEmpty()) {
+            WebElement sliderDrag = webDriver.findElement(By.id("puzzleSliderDrag")); // 滑动匹配图
+            log.info("slider image background-size: {}", sliderDrag.getCssValue(BG_SIZE_CSS_PROPERTY));
+            WebElement main = webDriver.findElement(By.id("puzzleImageMain")); // 背景图
+            log.info("background image background-size: {}", main.getCssValue(BG_SIZE_CSS_PROPERTY));
+            WebElement draggable = webDriver.findElement(By.id("puzzleSliderBox")); // puzzleSliderMoveingBar, 拖动条
+            new Actions(webDriver).clickAndHold(draggable).perform();
+            // 点评滑块人眼大小远小于占据大小（5.831em * 13.875em），背景图为18.5em * 13.875em = 296 * 222，font-size为16px，实际缩放成原图的1/3了！
+            // 点评滑块每次视野位置不同，固定水平位移失效
+            byte[] slideImg = parseImgFromElement(sliderDrag);
+            Point offset = AntiCaptcha.edgeOffset(slideImg);
+            AntiCaptcha.passThroughSlideCaptcha(webDriver, slideImg, parseImgFromElement(main), 1d/3d, -offset.x);
+            new Actions(webDriver).release(draggable).perform();
+            List<WebElement> successTips = webDriver.findElements(By.id("puzzleSliderSuccess"));
+            if (!successTips.isEmpty() && successTips.get(0).isDisplayed()) {
+                return true;
+            }
+            // XXX 是否主动刷新滑块，再次尝试
+        }
+        // 滑动到底，此方式要求滑动速度较快，否则在显示界面位置被重置到初始地方，webDriver仍在做无效滑动，即便多次尝试滑动成功后，仍被服务端检测不通过
+        List<WebElement> slider = webDriver.findElements(By.id("yodaMoveingBar"));
+        if (!slider.isEmpty()) {
+            new Actions(webDriver).clickAndHold(slider.get(0)).perform();
+            String width = webDriver.findElement(By.id("yodaBoxWrapper")).getCssValue("width");
+            Point target = new Point(Integer.parseInt(width.substring(0, width.length() - 2)), 1);
+            // TODO 轨迹优化
+            int[][] tracks = AntiCaptcha.generateTrack(target, 50, 500, target, 1.0d, 1.0d, 0, 0, 0, 0, 0, 0);
+            AntiCaptcha.slideFollowTrack(webDriver, tracks, 500);
+            new Actions(webDriver).release(slider.get(0)).perform();
+            List<WebElement> statusElement = webDriver.findElements(By.id("yodaBox"));
+            if (!statusElement.isEmpty() && "boxOk".equals(statusElement.get(0).getAttribute("class"))) { // class="boxStatic" --> class="boxOk"
+                return true;
+            }
+        }
+        log.error("unknown captcha");
+        return false;
     }
 
     private static byte[] parseImgFromElement(WebElement element) {

@@ -182,6 +182,11 @@ public class JsoupStepHandlerFactory {
                     log.error("request url: {}, status: {} - {}", url, response.statusCode(), response.statusMessage());
                     throw new ForceStopException("navigate to url not ok");
                 }
+                // TODO 被重定向，需要登录/滑块通过后，再度重定向回到初始请求页面
+                if (!connection.request().url().toString().equals(target)) {
+                    // https://account.dianping.com/pclogin?redir=https%3A%2F%2Fwww.dianping.com%2Fsearch%2Fkeyword%2F7%2F0_${keyword}?encoded
+                    log.warn("url redirect to: {}", connection.request().url());
+                }
                 Document newContent = response.parse();
                 Optional.ofNullable(anti.get(url.getHost()))
                         .orElse(e -> log.warn("no anti for host: '{}'", url.getHost()))

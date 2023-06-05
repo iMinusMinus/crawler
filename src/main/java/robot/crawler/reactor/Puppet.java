@@ -18,7 +18,7 @@ public record Puppet(Connection conn, Document doc) implements WebDriver {
 
     @Override
     public String getCurrentUrl() {
-        return doc.baseUri();
+        return conn.request().url().toString();
     }
 
     @Override
