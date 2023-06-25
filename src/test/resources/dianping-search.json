@@ -4,10 +4,7 @@
   "hint": "不限分类时无\"category\"，不限地点时无\"quarter\"，结果仅单页时无\"p{page}\": https://www.dianping.com/{city}/{subIndustry}/{category}{quarter}p{page}",
   "settings": {
     "browserName": "chrome",
-    "device": {
-      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
-    },
-    "arguments": ["--disable-images", "--lang=zh-CN", "--no-sandbox"],
+    "arguments": ["--disable-blink-features=AutomationControlled", "--auto-open-devtools-for-tabs","--lang=zh-CN", "--no-sandbox", "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/112.0.1774.50"],
     "experimentalOptions": {
       "excludeSwitches": ["enable-automation"]
     },
@@ -180,19 +177,30 @@
           "type": "locator",
           "selector": "div.svr-info > div > a[data-click-name='shop_info_groupdeal_click']",
           "multi": true
-        }, {
+        },
+        {
           "name": "获取店铺优惠券",
           "type": "box",
           "target": "shop-coupons",
           "outputPropertyName": "coupons",
           "outputValueType": "list",
-          "wrap": false,
+          "wrap": true,
           "steps": [
             {
-              "name": "获取单条优惠券",
+              "name": "获取优惠券描述",
               "type": "finder",
+              "outputPropertyName": "description",
               "valueGetter": "attribute",
               "attributeKey": "title",
+              "outputValueType": "string"
+            },
+            {
+              "name": "获取优惠券id",
+              "type": "finder",
+              "outputPropertyName": "dealId",
+              "valueGetter": "attribute",
+              "attributeKey": "href",
+              "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
               "outputValueType": "string"
             }
           ]

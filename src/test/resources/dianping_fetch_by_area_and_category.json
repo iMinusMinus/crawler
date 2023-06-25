@@ -5,7 +5,7 @@
   "settings": {
     "browserName": "chrome",
     "debug": true,
-    "arguments": [],
+    "arguments": ["--disable-blink-features=AutomationControlled"],
     "hint": "如果使用msedge启动失败，可以设置启动参数'webdriver.http.factory=jdk-http-client'来尝试解决"
   },
   "steps": [
@@ -219,13 +219,23 @@
               "target": "shop-coupons",
               "outputPropertyName": "coupons",
               "outputValueType": "list",
-              "wrap": false,
+              "wrap": true,
               "steps": [
                 {
-                  "name": "获取单条优惠券",
+                  "name": "获取优惠券描述",
                   "type": "finder",
+                  "outputPropertyName": "description",
                   "valueGetter": "attribute",
                   "attributeKey": "title",
+                  "outputValueType": "string"
+                },
+                {
+                  "name": "获取优惠券id",
+                  "type": "finder",
+                  "outputPropertyName": "dealId",
+                  "valueGetter": "attribute",
+                  "attributeKey": "href",
+                  "valueConverter": "arg.substring(arg.lastIndexOf(\"/\") + 1)",
                   "outputValueType": "string"
                 }
               ]
